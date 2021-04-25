@@ -6,6 +6,7 @@
                                    **Ray Tracing in One Weekend**
                                          [Peter Shirley][]
                       edited by [Steve Hollasch][] and [Trevor David Black][]
+											         translated to Rust by [Daniel Busch][]
                                                 <br>
                                      Version 3.2.3, 2020-12-07
                                                 <br>
@@ -72,9 +73,9 @@ start with a plain text ppm file. Here’s a nice description from Wikipedia:
   ![Figure [ppm]: PPM Example](../images/fig-1.01-ppm.jpg)
 
 <div class='together'>
-Let’s make some C++ code to output such a thing:
+Let’s make some Rust code to output such a thing:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     #include <iostream>
 
     int main() {
@@ -103,7 +104,7 @@ Let’s make some C++ code to output such a thing:
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-initial]: <kbd>[main.cc]</kbd> Creating your first image]
+    [Listing [main-initial]: <kbd>[main.rs]</kbd> Creating your first image]
 </div>
 
 There are some things to note in that code:
