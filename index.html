@@ -35,7 +35,7 @@ don’t need to. However, I suggest you do, because it’s fast, portable, and m
 video game renderers are written in C++. Note that I avoid most “modern features” of C++, but
 inheritance and operator overloading are too useful for ray tracers to pass on. I do not provide the
 code online, but the code is real and I show all of it except for a few straightforward operators in
-the `vec3` class. I am a big believer in typing in code to learn it, but when code is available I
+the `Vec3` class. I am a big believer in typing in code to learn it, but when code is available I
 use it, so I only practice what I preach when the code is not available. So don’t ask!
 
 I have left that last part in because it is funny what a 180 I have done. Several readers ended up
@@ -75,31 +75,26 @@ start with a plain text ppm file. Here’s a nice description from Wikipedia:
 <div class='together'>
 Let’s make some Rust code to output such a thing:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-    #include <iostream>
-
-    int main() {
-
-        // Image
-
-        const int image_width = 256;
-        const int image_height = 256;
-
-        // Render
-
-        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            for (int i = 0; i < image_width; ++i) {
-                auto r = double(i) / (image_width-1);
-                auto g = double(j) / (image_height-1);
-                auto b = 0.25;
-
-                int ir = static_cast<int>(255.999 * r);
-                int ig = static_cast<int>(255.999 * g);
-                int ib = static_cast<int>(255.999 * b);
-
-                std::cout << ir << ' ' << ig << ' ' << ib << '\n';
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn main() -> () {
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = 256;
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        for j in 0..IMAGE_HEIGHT {
+            for i in 0..IMAGE_WIDTH {
+                let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
+                let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
+                let b = 0.25;
+    
+                let ir = (255.999 * r) as u64;
+                let ig = (255.999 * g) as u64;
+                let ib = (255.999 * b) as u64;
+    
+                println!("{} {} {}", ir, ig, ib);
             }
         }
     }
@@ -129,13 +124,7 @@ Because the file is written to the program output, you'll need to redirect it to
 Typically this is done from the command-line by using the `>` redirection operator, like so:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    build\Release\inOneWeekend.exe > image.ppm
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This is how things would look on Windows. On Mac or Linux, it would look like this:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    build/inOneWeekend > image.ppm
+    cargo run > image.ppm
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 </div>
 
@@ -173,9 +162,6 @@ file in a text editor and see what it looks like. It should start something like
 If it doesn’t, then you probably just have some newlines or something similar that is confusing the
 image reader.
 
-If you want to produce more image types than PPM, I am a fan of `stb_image.h`, a header-only image
-library available on GitHub at https://github.com/nothings/stb.
-
 
 Adding a Progress Indicator
 ----------------------------
@@ -184,235 +170,287 @@ progress of a long render, and also to possibly identify a run that's stalled ou
 loop or other problem.
 
 <div class='together'>
-Our program outputs the image to the standard output stream (`std::cout`), so leave that alone and
-instead write to the error output stream (`std::cerr`):
+Our program outputs the image to the standard output stream (`println!`), so leave that alone and
+instead write to the error output stream (`eprintln!`):
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        for (int j = image_height-1; j >= 0; --j) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            for (int i = 0; i < image_width; ++i) {
-                auto r = double(i) / (image_width-1);
-                auto g = double(j) / (image_height-1);
-                auto b = 0.25;
-
-                int ir = static_cast<int>(255.999 * r);
-                int ig = static_cast<int>(255.999 * g);
-                int ib = static_cast<int>(255.999 * b);
-
-                std::cout << ir << ' ' << ig << ' ' << ib << '\n';
-            }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    for j in 0..IMAGE_HEIGHT {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        for i in 0..IMAGE_WIDTH {
+            let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
+            let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
+            let b = 0.25;
+    
+            let ir = (255.999 * r) as u64;
+            let ig = (255.999 * g) as u64;
+            let ib = (255.999 * b) as u64;
+    
+            println!("{} {} {}", ir, ig, ib);
         }
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        std::cerr << "\nDone.\n";
+    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    eprintln!("Done.");
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-progress]: <kbd>[main.cc]</kbd> Main render loop with progress reporting]
+    [Listing [main-progress]: <kbd>[main.rs]</kbd> Main render loop with progress reporting]
 </div>
 
 
 
-The vec3 Class
+The Vec3 Struct
 ====================================================================================================
 
-Almost all graphics programs have some class(es) for storing geometric vectors and colors. In many
+Almost all graphics programs have some class(es) for storing geometric vectors and Colors. In many
 systems these vectors are 4D (3D plus a homogeneous coordinate for geometry, and RGB plus an alpha
-transparency channel for colors). For our purposes, three coordinates suffices. We’ll use the same
-class `vec3` for colors, locations, directions, offsets, whatever. Some people don’t like this
-because it doesn’t prevent you from doing something silly, like adding a color to a location. They
+transparency channel for Colors). For our purposes, three coordinates suffices. We’ll use the same
+class `Vec3` for Colors, locations, directions, offsets, whatever. Some people don’t like this
+because it doesn’t prevent you from doing something silly, like adding a Color to a location. They
 have a good point, but we’re going to always take the “less code” route when not obviously wrong.
-In spite of this, we do declare two aliases for `vec3`: `point3` and `color`. Since these two types
-are just aliases for `vec3`, you won't get warnings if you pass a `color` to a function expecting a
-`point3`, for example. We use them only to clarify intent and use.
+In spite of this, we do declare two aliases for `Vec3`: `Point3` and `Color`. Since these two types
+are just aliases for `Vec3`, you won't get warnings if you pass a `Color` to a function expecting a
+`Point3`, for example. We use them only to clarify intent and use.
 
 
 Variables and Methods
 ----------------------
 <div class='together'>
-Here’s the top part of my `vec3` class:
+Here’s the top part of my `Vec3` struct and its trait implementations:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef VEC3_H
-    #define VEC3_H
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    use std::ops::{Index, IndexMut, Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 
-    #include <cmath>
-    #include <iostream>
-
-    using std::sqrt;
-
-    class vec3 {
-        public:
-            vec3() : e{0,0,0} {}
-            vec3(double e0, double e1, double e2) : e{e0, e1, e2} {}
-
-            double x() const { return e[0]; }
-            double y() const { return e[1]; }
-            double z() const { return e[2]; }
-
-            vec3 operator-() const { return vec3(-e[0], -e[1], -e[2]); }
-            double operator[](int i) const { return e[i]; }
-            double& operator[](int i) { return e[i]; }
-
-            vec3& operator+=(const vec3 &v) {
-                e[0] += v.e[0];
-                e[1] += v.e[1];
-                e[2] += v.e[2];
-                return *this;
+    #[derive(Clone, Copy)]
+    pub struct Vec3 {
+        e: [f64; 3]
+    }
+    
+    pub type Point3 = Vec3;
+    pub type Color = Vec3;
+    
+    impl Vec3 {
+        pub fn new(e0: f64, e1: f64, e2: f64) -> Vec3 {
+            Vec3 {
+                e: [e0, e1, e2]
             }
-
-            vec3& operator*=(const double t) {
-                e[0] *= t;
-                e[1] *= t;
-                e[2] *= t;
-                return *this;
+        }
+    }
+    
+    impl Index<usize> for Vec3 {
+        type Output = f64;
+    
+        fn index(&self, index: usize) -> &f64 {
+            &self.e[index]
+        }
+    }
+    
+    impl IndexMut<usize> for Vec3 {
+        fn index_mut(&mut self, index: usize) -> &mut f64 {
+            &mut self.e[index]
+        }
+    }
+    
+    impl Add for Vec3 {
+        type Output = Vec3;
+    
+        fn add(self, other: Vec3) -> Vec3 {
+            Vec3 {
+                e: [self[0] + other[0], self[1] + other[1], self[2] + other[2]]
             }
-
-            vec3& operator/=(const double t) {
-                return *this *= 1/t;
+        }
+    }
+    
+    impl AddAssign for Vec3 {
+        fn add_assign(&mut self, other: Vec3) -> () {
+            *self = Vec3 {
+                e: [self[0] + other[0], self[1] + other[1], self[2] + other[2]]
+            };
+        }
+    }
+    
+    impl Sub for Vec3 {
+        type Output = Vec3;
+    
+        fn sub(self, other: Vec3) -> Vec3 {
+            Vec3 {
+                e: [self[0] - other[0], self[1] - other[1], self[2] - other[2]]
             }
-
-            double length() const {
-                return sqrt(length_squared());
+        }
+    }
+    
+    impl SubAssign for Vec3 {
+        fn sub_assign(&mut self, other: Vec3) -> () {
+            *self = Vec3 {
+                e: [self[0] - other[0], self[1] - other[1], self[2] - other[2]]
+            };
+        }
+    }
+    
+    impl Mul<f64> for Vec3 {
+        type Output = Vec3;
+    
+        fn mul(self, other: f64) -> Vec3 {
+            Vec3 {
+                e: [self[0] * other, self[1] * other, self[2] * other]
             }
-
-            double length_squared() const {
-                return e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
+        }
+    }
+    
+    impl MulAssign<f64> for Vec3 {
+        fn mul_assign(&mut self, other: f64) -> () {
+            *self = Vec3 {
+                e: [self[0] * other, self[1] * other, self[2] * other]
+            };
+        }
+    }
+    
+    impl Mul<Vec3> for f64 {
+        type Output = Vec3;
+    
+        fn mul(self, other: Vec3) -> Vec3 {
+            Vec3 {
+                e: [self * other[0], self * other[1], self * other[2]]
             }
-
-        public:
-            double e[3];
-    };
-
-    // Type aliases for vec3
-    using point3 = vec3;   // 3D point
-    using color = vec3;    // RGB color
-
-    #endif
+        }
+    }
+    
+    impl Div<f64> for Vec3 {
+        type Output = Vec3;
+    
+        fn div(self, other: f64) -> Vec3 {
+            Vec3 {
+                e: [self[0] / other, self[1] / other, self[2] / other]
+            }
+        }
+    }
+    
+    impl DivAssign<f64> for Vec3 {
+        fn div_assign(&mut self, other: f64) -> () {
+            *self = Vec3 {
+                e: [self[0] / other, self[1] / other, self[2] / other]
+            };
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec3-class]: <kbd>[vec3.h]</kbd> vec3 class]
+    [Listing [Vec3-struct]: <kbd>[vec.rs]</kbd> Vec3 struct]
 </div>
 
 We use `double` here, but some ray tracers use `float`. Either one is fine -- follow your own
 tastes.
 
 
-vec3 Utility Functions
+Vec3 Utility Functions
 -----------------------
-The second part of the header file contains vector utility functions:
+We further add some vector utility functions to the implementation for `Vec3` and implement the `Display` trait:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    // vec3 Utility Functions
-
-    inline std::ostream& operator<<(std::ostream &out, const vec3 &v) {
-        return out << v.e[0] << ' ' << v.e[1] << ' ' << v.e[2];
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn x(self) -> f64 {
+        self[0]
     }
 
-    inline vec3 operator+(const vec3 &u, const vec3 &v) {
-        return vec3(u.e[0] + v.e[0], u.e[1] + v.e[1], u.e[2] + v.e[2]);
+    pub fn y(self) -> f64 {
+        self[1]
     }
 
-    inline vec3 operator-(const vec3 &u, const vec3 &v) {
-        return vec3(u.e[0] - v.e[0], u.e[1] - v.e[1], u.e[2] - v.e[2]);
+    pub fn z(self) -> f64 {
+        self[2]
     }
 
-    inline vec3 operator*(const vec3 &u, const vec3 &v) {
-        return vec3(u.e[0] * v.e[0], u.e[1] * v.e[1], u.e[2] * v.e[2]);
+    pub fn dot(self, other: Vec3) -> f64 {
+        self[0] * other[0] + self[1] * other[1] + self[2] * other[2]
     }
 
-    inline vec3 operator*(double t, const vec3 &v) {
-        return vec3(t*v.e[0], t*v.e[1], t*v.e[2]);
+    pub fn length(self) -> f64 {
+        self.dot(self).sqrt()
     }
 
-    inline vec3 operator*(const vec3 &v, double t) {
-        return t * v;
+    pub fn cross(self, other: Vec3) -> Vec3 {
+        Vec3 {
+            e: [
+                self[1] * other[2] - self[2] * other[1],
+                self[2] * other[0] - self[0] * other[2],
+                self[0] * other[1] - self[1] * other[0]
+            ]
+        }
     }
 
-    inline vec3 operator/(vec3 v, double t) {
-        return (1/t) * v;
-    }
-
-    inline double dot(const vec3 &u, const vec3 &v) {
-        return u.e[0] * v.e[0]
-             + u.e[1] * v.e[1]
-             + u.e[2] * v.e[2];
-    }
-
-    inline vec3 cross(const vec3 &u, const vec3 &v) {
-        return vec3(u.e[1] * v.e[2] - u.e[2] * v.e[1],
-                    u.e[2] * v.e[0] - u.e[0] * v.e[2],
-                    u.e[0] * v.e[1] - u.e[1] * v.e[0]);
-    }
-
-    inline vec3 unit_vector(vec3 v) {
-        return v / v.length();
+    pub fn normalized(self) -> Vec3 {
+        self / self.length()
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec3-utility]: <kbd>[vec3.h]</kbd> vec3 utility functions]
+    [Listing [Vec3-utility]: <kbd>[vec.rs]</kbd> Vec3 utility functions]
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    ..
+
+    use std::fmt;
+    use std::fmt::Display;
+
+    ..
+
+    impl Display for Vec3 {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "({}, {}, {})", self[0], self[1], self[2])
+        }
+    }
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [Vec3-display]: <kbd>[vec.rs]</kbd> Vec3 display trait implementation]
 
 
 Color Utility Functions
 ------------------------
-Using our new `vec3` class, we'll create a utility function to write a single pixel's color out to
-the standard output stream.
+Using our new `Vec3` struct, we'll create a utility function to format a single pixel's color.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef COLOR_H
-    #define COLOR_H
-
-    #include "vec3.h"
-
-    #include <iostream>
-
-    void write_color(std::ostream &out, color pixel_color) {
-        // Write the translated [0,255] value of each color component.
-        out << static_cast<int>(255.999 * pixel_color.x()) << ' '
-            << static_cast<int>(255.999 * pixel_color.y()) << ' '
-            << static_cast<int>(255.999 * pixel_color.z()) << '\n';
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn format_color(self) -> String {
+        format!("{} {} {}", (255.999 * self[0]) as u64,
+                            (255.999 * self[1]) as u64,
+                            (255.999 * self[2]) as u64)
     }
-
-    #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [color]: <kbd>[color.h]</kbd> color utility functions]
+    [Listing [Color]: <kbd>[vec.rs]</kbd> Color utility functions]
 
 
 
 <div class='together'>
 Now we can change our main to use this:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "color.h"
-    #include "vec3.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    mod vec;
 
-    #include <iostream>
-
-    int main() {
-
-        // Image
-
-        const int image_width = 256;
-        const int image_height = 256;
-
-        // Render
-
-        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                color pixel_color(double(i)/(image_width-1), double(j)/(image_height-1), 0.25);
-                write_color(std::cout, pixel_color);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    use vec::{Vec3, Color};
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+    fn main() -> () {
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = 256;
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                let pixel_color = Color::new((i as f64) / ((IMAGE_WIDTH - 1) as f64),
+                                             (j as f64) / ((IMAGE_HEIGHT - 1) as f64),
+                                             0.25);
+    
+                println!("{}", pixel_color.format_color());
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
             }
         }
-
-        std::cerr << "\nDone.\n";
+    
+        eprintln!("Done.");
+    
+        let mut foo = Vec3::new(0.0, 0.0, 0.0);
+        foo -= Vec3::new(1.0, 0.0, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ppm-2]: <kbd>[main.cc]</kbd> Final code for the first PPM image]
+    [Listing [ppm-2]: <kbd>[main.rs]</kbd> Final code for the first PPM image]
 </div>
 
 
@@ -420,10 +458,10 @@ Now we can change our main to use this:
 Rays, a Simple Camera, and Background
 ====================================================================================================
 
-The ray Class
+The ray Struct
 --------------
 <div class='together'>
-The one thing that all ray tracers have is a ray class and a computation of what color is seen along
+The one thing that all ray tracers have is a ray struct and a computation of what Color is seen along
 a ray. Let’s think of a ray as a function $\mathbf{P}(t) = \mathbf{A} + t \mathbf{b}$. Here
 $\mathbf{P}$ is a 3D position along a line in 3D. $\mathbf{A}$ is the ray origin and $\mathbf{b}$ is
 the ray direction. The ray parameter $t$ is a real number (`double` in the code). Plug in a
@@ -438,45 +476,47 @@ and this is what is often called a half-line or ray.
 <div class='together'>
 The function $\mathbf{P}(t)$ in more verbose code form I call `ray::at(t)`:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef RAY_H
-    #define RAY_H
-
-    #include "vec3.h"
-
-    class ray {
-        public:
-            ray() {}
-            ray(const point3& origin, const vec3& direction)
-                : orig(origin), dir(direction)
-            {}
-
-            point3 origin() const  { return orig; }
-            vec3 direction() const { return dir; }
-
-            point3 at(double t) const {
-                return orig + t*dir;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    use super::vec::{Vec3, Point3};
+    
+    struct Ray {
+        orig: Point3,
+        dir: Vec3
+    }
+    
+    impl Ray {
+        pub fn new(origin: Point3, direction: Vec3) -> Ray {
+            Ray {
+                orig: origin,
+                dir: direction
             }
-
-        public:
-            point3 orig;
-            vec3 dir;
-    };
-
-    #endif
+        }
+    
+        pub fn origin(&self) -> Point3 {
+            self.orig
+        }
+    
+        pub fn direction(&self) -> Vec3 {
+            self.dir
+        }
+    
+        pub fn at(&self, t: f64) -> Point3 {
+            self.orig + t * self.dir
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-initial]: <kbd>[ray.h]</kbd> The ray class]
+    [Listing [ray-initial]: <kbd>[ray.rs]</kbd> The ray struct]
 </div>
 
 
 Sending Rays Into the Scene
 ----------------------------
 Now we are ready to turn the corner and make a ray tracer. At the core, the ray tracer sends rays
-through pixels and computes the color seen in the direction of those rays. The involved steps are
+through pixels and computes the Color seen in the direction of those rays. The involved steps are
 (1) calculate the ray from the eye to the pixel, (2) determine which objects the ray intersects, and
-(3) compute a color for that intersection point. When first developing a ray tracer, I always do a
+(3) compute a Color for that intersection point. When first developing a ray tracer, I always do a
 simple camera for getting the code up and running. I also make a simple `ray_color(ray)` function
-that returns the color of the background (a simple gradient).
+that returns the Color of the background (a simple gradient).
 
 I’ve often gotten into trouble using square images for debugging because I transpose $x$ and $y$ too
 often, so I’ll use a non-square image. For now we'll use a 16:9 aspect ratio, since that's so
@@ -502,21 +542,76 @@ that makes for simpler and slightly faster code.
 Below in code, the ray `r` goes to approximately the pixel centers (I won’t worry about exactness
 for now because we’ll add antialiasing later):
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #include "color.h"
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    mod vec;
+    mod ray;
+    
+    use vec::{Vec3, Point3, Color};
+    use ray::Ray;
+    
+    fn ray_color(r: &Ray) -> Color {
+        let unit_direction = r.direction().normalized();
+        let t = 0.5 * (unit_direction.y() + 1.0);
+        (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+    fn main() -> () {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        // Image
+        const ASPECT_RATIO: f64 = 16.0 / 9.0;
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = 256;
+    
+        // Camera
+        let viewport_height = 2.0;
+        let viewport_width = ASPECT_RATIO * viewport_height;
+        let focal_length = 1.0;
+    
+        let origin = Point3::new(0.0, 0.0, 0.0);
+        let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
+        let vertical = Vec3::new(0.0, viewport_height, 0.0);
+        let lower_left_corner = origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0.0, 0.0, focal_length);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+                let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
+                let v = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
+    
+                let r = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical - origin);
+                let pixel_color = ray_color(&r);
+    
+                println!("{}", pixel_color.format_color());
+            }
+        }
+    
+        eprintln!("Done.");
+    
+        let mut foo = Vec3::new(0.0, 0.0, 0.0);
+        foo -= Vec3::new(1.0, 0.0, 1.0);
+    }
+
+    #include "Color.h"
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
     #include "ray.h"
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #include "vec3.h"
+    #include "Vec3.h"
 
     #include <iostream>
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    color ray_color(const ray& r) {
-        vec3 unit_direction = unit_vector(r.direction());
+    Color ray_Color(const ray& r) {
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
@@ -535,10 +630,10 @@ for now because we’ll add antialiasing later):
         auto viewport_width = aspect_ratio * viewport_height;
         auto focal_length = 1.0;
 
-        auto origin = point3(0, 0, 0);
-        auto horizontal = vec3(viewport_width, 0, 0);
-        auto vertical = vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+        auto origin = Point3(0, 0, 0);
+        auto horizontal = Vec3(viewport_width, 0, 0);
+        auto vertical = Vec3(0, viewport_height, 0);
+        auto lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         // Render
@@ -552,23 +647,23 @@ for now because we’ll add antialiasing later):
                 auto u = double(i) / (image_width-1);
                 auto v = double(j) / (image_height-1);
                 ray r(origin, lower_left_corner + u*horizontal + v*vertical - origin);
-                color pixel_color = ray_color(r);
+                Color pixel_Color = ray_Color(r);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                write_color(std::cout, pixel_color);
+                write_Color(std::cout, pixel_Color);
             }
         }
 
         std::cerr << "\nDone.\n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-blue-white-blend]: <kbd>[main.cc]</kbd> Rendering a blue-to-white gradient]
+    [Listing [main-blue-white-blend]: <kbd>[main.rs]</kbd> Rendering a blue-to-white gradient]
 </div>
 
 <div class='together'>
-The `ray_color(ray)` function linearly blends white and blue depending on the height of the $y$
+The `ray_Color(ray)` function linearly blends white and blue depending on the height of the $y$
 coordinate _after_ scaling the ray direction to unit length (so $-1.0 < y < 1.0$). Because we're
 looking at the $y$ height after normalizing the vector, you'll notice a horizontal gradient to the
-color in addition to the vertical gradient.
+Color in addition to the vertical gradient.
 
 I then did a standard graphics trick of scaling that to $0.0 ≤ t ≤ 1.0$. When $t = 1.0$ I want blue.
 When $t = 0.0$ I want white. In between, I want a blend. This forms a “linear blend”, or “linear
@@ -607,7 +702,7 @@ It gets uglier if the sphere center is at $(C_x, C_y, C_z)$:
 
 <div class='together'>
 In graphics, you almost always want your formulas to be in terms of vectors so all the x/y/z stuff
-is under the hood in the `vec3` class. You might note that the vector from center
+is under the hood in the `Vec3` struct. You might note that the vector from center
 $\mathbf{C} = (C_x,C_y,C_z)$ to point $\mathbf{P} = (x,y,z)$ is $(\mathbf{P} - \mathbf{C})$, and
 therefore
 
@@ -661,12 +756,12 @@ always relates very directly to the geometry. What we have is:
 Creating Our First Raytraced Image
 -----------------------------------
 <div class='together'>
-If we take that math and hard-code it into our program, we can test it by coloring red any pixel
+If we take that math and hard-code it into our program, we can test it by Coloring red any pixel
 that hits a small sphere we place at -1 on the z-axis:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    bool hit_sphere(const point3& center, double radius, const ray& r) {
-        vec3 oc = r.origin() - center;
+    bool hit_sphere(const Point3& center, double radius, const ray& r) {
+        Vec3 oc = r.origin() - center;
         auto a = dot(r.direction(), r.direction());
         auto b = 2.0 * dot(oc, r.direction());
         auto c = dot(oc, oc) - radius*radius;
@@ -677,14 +772,14 @@ that hits a small sphere we place at -1 on the z-axis:
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    color ray_color(const ray& r) {
+    Color ray_Color(const ray& r) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        if (hit_sphere(point3(0,0,-1), 0.5, r))
-            return color(1, 0, 0);
+        if (hit_sphere(Point3(0,0,-1), 0.5, r))
+            return Color(1, 0, 0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-red-sphere]: <kbd>[main.cc]</kbd> Rendering a red sphere]
@@ -723,7 +818,7 @@ the direction of the hit point minus the center:
 <div class='together'>
 On the earth, this implies that the vector from the earth’s center to you points straight up. Let’s
 throw that into the code now, and shade it. We don’t have any lights or anything yet, so let’s just
-visualize the normals with a color map. A common trick used for visualizing normals (because it’s
+visualize the normals with a Color map. A common trick used for visualizing normals (because it’s
 easy and somewhat intuitive to assume $\mathbf{n}$ is a unit length vector -- so each
 component is between -1 and 1) is to map each component to the interval from 0 to 1, and then map
 x/y/z to r/g/b. For the normal, we need the hit point, not just whether we hit or not. We only have
@@ -732,9 +827,9 @@ values of $t$ yet. We'll just assume the closest hit point (smallest $t$). These
 let us compute and visualize $\mathbf{n}$:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    double hit_sphere(const point3& center, double radius, const ray& r) {
+    double hit_sphere(const Point3& center, double radius, const ray& r) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        vec3 oc = r.origin() - center;
+        Vec3 oc = r.origin() - center;
         auto a = dot(r.direction(), r.direction());
         auto b = 2.0 * dot(oc, r.direction());
         auto c = dot(oc, oc) - radius*radius;
@@ -749,19 +844,19 @@ let us compute and visualize $\mathbf{n}$:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     }
 
-    color ray_color(const ray& r) {
+    Color ray_Color(const ray& r) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto t = hit_sphere(point3(0,0,-1), 0.5, r);
+        auto t = hit_sphere(Point3(0,0,-1), 0.5, r);
         if (t > 0.0) {
-            vec3 N = unit_vector(r.at(t) - vec3(0,0,-1));
-            return 0.5*color(N.x()+1, N.y()+1, N.z()+1);
+            Vec3 N = unit_vector(r.at(t) - Vec3(0,0,-1));
+            return 0.5*Color(N.x()+1, N.y()+1, N.z()+1);
         }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         t = 0.5*(unit_direction.y() + 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [render-surface-normal]: <kbd>[main.cc]</kbd> Rendering surface normals on a sphere]
@@ -770,7 +865,7 @@ let us compute and visualize $\mathbf{n}$:
 <div class='together'>
 And that yields this picture:
 
-  ![Image 4: A sphere colored according to its normal vectors
+  ![Image 4: A sphere Colored according to its normal vectors
   ](raytracinginrust/images/img-1.04-normals-sphere.png class=pixel)
 
 </div>
@@ -781,8 +876,8 @@ Simplifying the Ray-Sphere Intersection Code
 Let’s revisit the ray-sphere equation:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    double hit_sphere(const point3& center, double radius, const ray& r) {
-        vec3 oc = r.origin() - center;
+    double hit_sphere(const Point3& center, double radius, const ray& r) {
+        Vec3 oc = r.origin() - center;
         auto a = dot(r.direction(), r.direction());
         auto b = 2.0 * dot(oc, r.direction());
         auto c = dot(oc, oc) - radius*radius;
@@ -813,8 +908,8 @@ quadratic equation if $b = 2h$:
 Using these observations, we can now simplify the sphere-intersection code to this:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    double hit_sphere(const point3& center, double radius, const ray& r) {
-        vec3 oc = r.origin() - center;
+    double hit_sphere(const Point3& center, double radius, const ray& r) {
+        Vec3 oc = r.origin() - center;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         auto a = r.direction().length_squared();
         auto half_b = dot(oc, r.direction());
@@ -837,21 +932,21 @@ Using these observations, we can now simplify the sphere-intersection code to th
 An Abstraction for Hittable Objects
 ------------------------------------
 Now, how about several spheres? While it is tempting to have an array of spheres, a very clean
-solution is the make an “abstract class” for anything a ray might hit, and make both a sphere and a
-list of spheres just something you can hit. What that class should be called is something of a
+solution is the make a “trait” for anything a ray might hit, and make both a sphere and a
+list of spheres just something you can hit. What that struct should be called is something of a
 quandary -- calling it an “object” would be good if not for “object oriented” programming. “Surface”
 is often used, with the weakness being maybe we will want volumes. “hittable” emphasizes the member
 function that unites them. I don’t love any of these, but I will go with “hittable”.
 
 <div class='together'>
-This `hittable` abstract class will have a hit function that takes in a ray. Most ray tracers have
+This `Hit` trait will have a hit function that takes in a ray. Most ray tracers have
 found it convenient to add a valid interval for hits $t_{min}$ to $t_{max}$, so the hit only
 “counts” if $t_{min} < t < t_{max}$. For the initial rays this is positive $t$, but as we will see,
 it can help some details in the code to have an interval $t_{min}$ to $t_{max}$. One design question
 is whether to do things like compute the normal if we hit something. We might end up hitting
 something closer as we do our search, and we will only need the normal of the closest thing. I will
 go with the simple solution and compute a bundle of stuff I will store in some structure. Here’s
-the abstract class:
+the trait:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     #ifndef HITTABLE_H
@@ -860,8 +955,8 @@ the abstract class:
     #include "ray.h"
 
     struct hit_record {
-        point3 p;
-        vec3 normal;
+        Point3 p;
+        Vec3 normal;
         double t;
     };
 
@@ -872,7 +967,7 @@ the abstract class:
 
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [hittable-initial]: <kbd>[hittable.h]</kbd> The hittable class]
+    [Listing [hittable-initial]: <kbd>[hittable.h]</kbd> The Hit trait]
 </div>
 
 <div class='together'>
@@ -883,23 +978,23 @@ And here’s the sphere:
     #define SPHERE_H
 
     #include "hittable.h"
-    #include "vec3.h"
+    #include "Vec3.h"
 
     class sphere : public hittable {
         public:
             sphere() {}
-            sphere(point3 cen, double r) : center(cen), radius(r) {};
+            sphere(Point3 cen, double r) : center(cen), radius(r) {};
 
             virtual bool hit(
                 const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
         public:
-            point3 center;
+            Point3 center;
             double radius;
     };
 
     bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
-        vec3 oc = r.origin() - center;
+        Vec3 oc = r.origin() - center;
         auto a = r.direction().length_squared();
         auto half_b = dot(oc, r.direction());
         auto c = oc.length_squared() - radius*radius;
@@ -925,7 +1020,7 @@ And here’s the sphere:
 
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [sphere-initial]: <kbd>[sphere.h]</kbd> The sphere class]
+    [Listing [sphere-initial]: <kbd>[sphere.h]</kbd> The sphere struct]
 
 </div>
 
@@ -952,7 +1047,7 @@ differently on each side, like the text on a two-sided sheet of paper, or for ob
 inside and an outside, like glass balls.
 
 If we decide to have the normals always point out, then we will need to determine which side the
-ray is on when we color it. We can figure this out by comparing the ray with the normal. If the ray
+ray is on when we Color it. We can figure this out by comparing the ray with the normal. If the ray
 and the normal face in the same direction, the ray is inside the object, if the ray and the normal
 face in the opposite direction, then the ray is outside the object. This can be determined by
 taking the dot product of the two vectors, where if their dot is positive, the ray is inside the
@@ -990,7 +1085,7 @@ information:
 
 We can set things up so that normals always point “outward” from the surface, or always point
 against the incident ray. This decision is determined by whether you want to determine the side of
-the surface at the time of geometry intersection or at the time of coloring. In this book we have
+the surface at the time of geometry intersection or at the time of Coloring. In this book we have
 more material types than we have geometry types, so we'll go for less work and put the determination
 at geometry time. This is simply a matter of preference, and you'll see both implementations in the
 literature.
@@ -1000,13 +1095,13 @@ calculation for us.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     struct hit_record {
-        point3 p;
-        vec3 normal;
+        Point3 p;
+        Vec3 normal;
         double t;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         bool front_face;
 
-        inline void set_face_normal(const ray& r, const vec3& outward_normal) {
+        inline void set_face_normal(const ray& r, const Vec3& outward_normal) {
             front_face = dot(r.direction(), outward_normal) < 0;
             normal = front_face ? outward_normal :-outward_normal;
         }
@@ -1017,7 +1112,7 @@ calculation for us.
         Adding front-face tracking to hit_record]
 
 <div class='together'>
-And then we add the surface side determination to the class:
+And then we add the surface side determination to the struct implementation:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
@@ -1026,14 +1121,14 @@ And then we add the surface side determination to the class:
         rec.t = root;
         rec.p = r.at(rec.t);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        vec3 outward_normal = (rec.p - center) / radius;
+        Vec3 outward_normal = (rec.p - center) / radius;
         rec.set_face_normal(r, outward_normal);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         return true;
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [sphere-final]: <kbd>[sphere.h]</kbd> The sphere class with normal determination]
+    [Listing [sphere-final]: <kbd>[sphere.h]</kbd> The sphere struct with normal determination]
 
 </div>
 
@@ -1041,8 +1136,8 @@ And then we add the surface side determination to the class:
 A List of Hittable Objects
 ---------------------------
 <div class='together'>
-We have a generic object called a `hittable` that the ray can intersect with. We now add a class
-that stores a list of `hittable`s:
+We have a generic object called a `hittable` that the ray can intersect with. We now add a struct
+that stores a list of `Hit`s:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     #ifndef HITTABLE_LIST_H
@@ -1089,7 +1184,7 @@ that stores a list of `hittable`s:
 
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [hittable-list-initial]: <kbd>[hittable_list.h]</kbd> The hittable_list class]
+    [Listing [hittable-list-initial]: <kbd>[hittable_list.h]</kbd> The hittable_list struct]
 </div>
 
 
@@ -1108,8 +1203,8 @@ Typically, a shared pointer is first initialized with a newly-allocated object, 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     shared_ptr<double> double_ptr = make_shared<double>(0.37);
-    shared_ptr<vec3>   vec3_ptr   = make_shared<vec3>(1.414214, 2.718281, 1.618034);
-    shared_ptr<sphere> sphere_ptr = make_shared<sphere>(point3(0,0,0), 1.0);
+    shared_ptr<Vec3>   Vec3_ptr   = make_shared<Vec3>(1.414214, 2.718281, 1.618034);
+    shared_ptr<sphere> sphere_ptr = make_shared<sphere>(Point3(0,0,0), 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [shared-ptr]: An example allocation using shared_ptr]
 
@@ -1121,8 +1216,8 @@ above lines can be more simply expressed using C++'s `auto` type specifier:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     auto double_ptr = make_shared<double>(0.37);
-    auto vec3_ptr   = make_shared<vec3>(1.414214, 2.718281, 1.618034);
-    auto sphere_ptr = make_shared<sphere>(point3(0,0,0), 1.0);
+    auto Vec3_ptr   = make_shared<Vec3>(1.414214, 2.718281, 1.618034);
+    auto sphere_ptr = make_shared<sphere>(Point3(0,0,0), 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [shared-ptr-auto]: An example allocation using shared_ptr with auto type]
 
@@ -1184,7 +1279,7 @@ file.
     // Common Headers
 
     #include "ray.h"
-    #include "vec3.h"
+    #include "Vec3.h"
 
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1197,7 +1292,7 @@ And the new main:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
     #include "rtweekend.h"
 
-    #include "color.h"
+    #include "Color.h"
     #include "hittable_list.h"
     #include "sphere.h"
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -1205,18 +1300,18 @@ And the new main:
     #include <iostream>
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    color ray_color(const ray& r, const hittable& world) {
+    Color ray_Color(const ray& r, const hittable& world) {
         hit_record rec;
         if (world.hit(r, 0, infinity, rec)) {
-            return 0.5 * (rec.normal + color(1,1,1));
+            return 0.5 * (rec.normal + Color(1,1,1));
         }
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         auto t = 0.5*(unit_direction.y() + 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
 
     int main() {
@@ -1231,8 +1326,8 @@ And the new main:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         hittable_list world;
-        world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
-        world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+        world.add(make_shared<sphere>(Point3(0,0,-1), 0.5));
+        world.add(make_shared<sphere>(Point3(0,-100.5,-1), 100));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         // Camera
@@ -1241,10 +1336,10 @@ And the new main:
         auto viewport_width = aspect_ratio * viewport_height;
         auto focal_length = 1.0;
 
-        auto origin = point3(0, 0, 0);
-        auto horizontal = vec3(viewport_width, 0, 0);
-        auto vertical = vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+        auto origin = Point3(0, 0, 0);
+        auto horizontal = Vec3(viewport_width, 0, 0);
+        auto vertical = Vec3(0, viewport_height, 0);
+        auto lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
 
         // Render
 
@@ -1257,9 +1352,9 @@ And the new main:
                 auto v = double(j) / (image_height-1);
                 ray r(origin, lower_left_corner + u*horizontal + v*vertical);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                color pixel_color = ray_color(r, world);
+                Color pixel_Color = ray_Color(r, world);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                write_color(std::cout, pixel_color);
+                write_Color(std::cout, pixel_Color);
             }
         }
 
@@ -1273,7 +1368,7 @@ And the new main:
 This yields a picture that is really just a visualization of where the spheres are along with their
 surface normal. This is often a great way to look at your model for flaws and characteristics.
 
-  ![Image 5: Resulting render of normals-colored sphere with ground
+  ![Image 5: Resulting render of normals-Colored sphere with ground
   ](raytracinginrust/images/img-1.05-normals-sphere-ground.png class=pixel)
 
 </div>
@@ -1287,7 +1382,7 @@ When a real camera takes a picture, there are usually no jaggies along edges bec
 are a blend of some foreground and some background. We can get the same effect by averaging a bunch
 of samples inside each pixel. We will not bother with stratification. This is controversial, but is
 usual for my programs. For some ray tracers it is critical, but the kind of general one we are
-writing doesn’t benefit very much from it and it makes the code uglier. We abstract the camera class
+writing doesn’t benefit very much from it and it makes the code uglier. We abstract the camera struct
 a bit so we can make a cooler camera later.
 
 Some Random Number Utilities
@@ -1340,15 +1435,15 @@ Generating Pixels with Multiple Samples
 ----------------------------------------
 <div class='together'>
 For a given pixel we have several samples within that pixel and send rays through each of the
-samples. The colors of these rays are then averaged:
+samples. The Colors of these rays are then averaged:
 
   ![Figure [pixel-samples]: Pixel samples](raytracinginrust/images/fig-1.07-pixel-samples.jpg)
 
 </div>
 
 <div class='together'>
-Now's a good time to create a `camera` class to manage our virtual camera and the related tasks of
-scene scampling. The following class implements a simple camera using the axis-aligned camera from
+Now's a good time to create a `Camera` struct to manage our virtual camera and the related tasks of
+scene scampling. The following struct implements a simple camera using the axis-aligned camera from
 before:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -1365,10 +1460,10 @@ before:
                 auto viewport_width = aspect_ratio * viewport_height;
                 auto focal_length = 1.0;
 
-                origin = point3(0, 0, 0);
-                horizontal = vec3(viewport_width, 0.0, 0.0);
-                vertical = vec3(0.0, viewport_height, 0.0);
-                lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+                origin = Point3(0, 0, 0);
+                horizontal = Vec3(viewport_width, 0.0, 0.0);
+                vertical = Vec3(0.0, viewport_height, 0.0);
+                lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
             }
 
             ray get_ray(double u, double v) const {
@@ -1376,20 +1471,20 @@ before:
             }
 
         private:
-            point3 origin;
-            point3 lower_left_corner;
-            vec3 horizontal;
-            vec3 vertical;
+            Point3 origin;
+            Point3 lower_left_corner;
+            Vec3 horizontal;
+            Vec3 vertical;
     };
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [camera-initial]: <kbd>[camera.h]</kbd> The camera class]
+    [Listing [camera-initial]: <kbd>[camera.h]</kbd> The camera struct]
 </div>
 
-To handle the multi-sampled color computation, we'll update the `write_color()` function. Rather
-than adding in a fractional contribution each time we accumulate more light to the color, just add
-the full color each iteration, and then perform a single divide at the end (by the number of
-samples) when writing out the color. In addition, we'll add a handy utility function to the
+To handle the multi-sampled Color computation, we'll update the `write_Color()` function. Rather
+than adding in a fractional contribution each time we accumulate more light to the Color, just add
+the full Color each iteration, and then perform a single divide at the end (by the number of
+samples) when writing out the Color. In addition, we'll add a handy utility function to the
 `rtweekend.h` utility header: `clamp(x,min,max)`, which clamps the value `x` to the range [min,max]:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -1402,24 +1497,24 @@ samples) when writing out the color. In addition, we'll add a handy utility func
     [Listing [clamp]: <kbd>[rtweekend.h]</kbd> The clamp() utility function]
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    void write_color(std::ostream &out, color pixel_color, int samples_per_pixel) {
-        auto r = pixel_color.x();
-        auto g = pixel_color.y();
-        auto b = pixel_color.z();
+    void write_Color(std::ostream &out, Color pixel_Color, int samples_per_pixel) {
+        auto r = pixel_Color.x();
+        auto g = pixel_Color.y();
+        auto b = pixel_Color.z();
 
-        // Divide the color by the number of samples.
+        // Divide the Color by the number of samples.
         auto scale = 1.0 / samples_per_pixel;
         r *= scale;
         g *= scale;
         b *= scale;
 
-        // Write the translated [0,255] value of each color component.
+        // Write the translated [0,255] value of each Color component.
         out << static_cast<int>(256 * clamp(r, 0.0, 0.999)) << ' '
             << static_cast<int>(256 * clamp(g, 0.0, 0.999)) << ' '
             << static_cast<int>(256 * clamp(b, 0.0, 0.999)) << '\n';
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [write-color-clamped]: <kbd>[color.h]</kbd> The multi-sample write_color() function]
+    [Listing [write-Color-clamped]: <kbd>[Color.h]</kbd> The multi-sample write_Color() function]
 
 <div class='together'>
 Main is also changed:
@@ -1444,8 +1539,8 @@ Main is also changed:
         // World
 
         hittable_list world;
-        world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
-        world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+        world.add(make_shared<sphere>(Point3(0,0,-1), 0.5));
+        world.add(make_shared<sphere>(Point3(0,-100.5,-1), 100));
 
         // Camera
 
@@ -1461,14 +1556,14 @@ Main is also changed:
             std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
             for (int i = 0; i < image_width; ++i) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                color pixel_color(0, 0, 0);
+                Color pixel_Color(0, 0, 0);
                 for (int s = 0; s < samples_per_pixel; ++s) {
                     auto u = (i + random_double()) / (image_width-1);
                     auto v = (j + random_double()) / (image_height-1);
                     ray r = cam.get_ray(u, v);
-                    pixel_color += ray_color(r, world);
+                    pixel_Color += ray_Color(r, world);
                 }
-                write_color(std::cout, pixel_color, samples_per_pixel);
+                write_Color(std::cout, pixel_Color, samples_per_pixel);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
             }
         }
@@ -1499,8 +1594,8 @@ of the limitation.
 A Simple Diffuse Material
 --------------------------
 <div class='together'>
-Diffuse objects that don’t emit light merely take on the color of their surroundings, but they
-modulate that with their own intrinsic color. Light that reflects off a diffuse surface has its
+Diffuse objects that don’t emit light merely take on the Color of their surroundings, but they
+modulate that with their own intrinsic Color. Light that reflects off a diffuse surface has its
 direction randomized. So, if we send three rays into a crack between two diffuse surfaces they will
 each have different random behavior:
 
@@ -1538,64 +1633,64 @@ algorithm: a rejection method. First, pick a random point in the unit cube where
 range from -1 to +1. Reject this point and try again if the point is outside the sphere.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class vec3 {
+    class Vec3 {
       public:
         ..
-        inline static vec3 random() {
-            return vec3(random_double(), random_double(), random_double());
+        inline static Vec3 random() {
+            return Vec3(random_double(), random_double(), random_double());
         }
 
-        inline static vec3 random(double min, double max) {
-            return vec3(random_double(min,max), random_double(min,max), random_double(min,max));
+        inline static Vec3 random(double min, double max) {
+            return Vec3(random_double(min,max), random_double(min,max), random_double(min,max));
         }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec-rand-util]: <kbd>[vec3.h]</kbd> vec3 random utility functions]
+    [Listing [vec-rand-util]: <kbd>[Vec3.h]</kbd> Vec3 random utility functions]
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    vec3 random_in_unit_sphere() {
+    Vec3 random_in_unit_sphere() {
         while (true) {
-            auto p = vec3::random(-1,1);
+            auto p = Vec3::random(-1,1);
             if (p.length_squared() >= 1) continue;
             return p;
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-in-unit-sphere]: <kbd>[vec3.h]</kbd> The random_in_unit_sphere() function]
+    [Listing [random-in-unit-sphere]: <kbd>[Vec3.h]</kbd> The random_in_unit_sphere() function]
 </div>
 
 <div class='together'>
-Then update the `ray_color()` function to use the new random direction generator:
+Then update the `ray_Color()` function to use the new random direction generator:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    color ray_color(const ray& r, const hittable& world) {
+    Color ray_Color(const ray& r, const hittable& world) {
         hit_record rec;
 
         if (world.hit(r, 0, infinity, rec)) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            point3 target = rec.p + rec.normal + random_in_unit_sphere();
-            return 0.5 * ray_color(ray(rec.p, target - rec.p), world);
+            Point3 target = rec.p + rec.normal + random_in_unit_sphere();
+            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         }
 
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-color-random-unit]: <kbd>[main.cc]</kbd> ray_color() using a random ray direction]
+    [Listing [ray-Color-random-unit]: <kbd>[main.cc]</kbd> ray_Color() using a random ray direction]
 </div>
 
 
 Limiting the Number of Child Rays
 ----------------------------------
 <div class='together'>
-There's one potential problem lurking here. Notice that the `ray_color` function is recursive. When
+There's one potential problem lurking here. Notice that the `ray_Color` function is recursive. When
 will it stop recursing? When it fails to hit anything. In some cases, however, that may be a long
 time — long enough to blow the stack. To guard against that, let's limit the maximum recursion
 depth, returning no light contribution at the maximum depth:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    color ray_color(const ray& r, const hittable& world, int depth) {
+    Color ray_Color(const ray& r, const hittable& world, int depth) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         hit_record rec;
 
@@ -1603,19 +1698,19 @@ depth, returning no light contribution at the maximum depth:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0)
-            return color(0,0,0);
+            return Color(0,0,0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         if (world.hit(r, 0, infinity, rec)) {
-            point3 target = rec.p + rec.normal + random_in_unit_sphere();
+            Point3 target = rec.p + rec.normal + random_in_unit_sphere();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth-1);
+            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         }
 
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
 
     ..
@@ -1640,23 +1735,23 @@ depth, returning no light contribution at the maximum depth:
         for (int j = image_height-1; j >= 0; --j) {
             std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
             for (int i = 0; i < image_width; ++i) {
-                color pixel_color(0, 0, 0);
+                Color pixel_Color(0, 0, 0);
                 for (int s = 0; s < samples_per_pixel; ++s) {
                     auto u = (i + random_double()) / (image_width-1);
                     auto v = (j + random_double()) / (image_height-1);
                     ray r = cam.get_ray(u, v);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                    pixel_color += ray_color(r, world, max_depth);
+                    pixel_Color += ray_Color(r, world, max_depth);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
                 }
-                write_color(std::cout, pixel_color, samples_per_pixel);
+                write_Color(std::cout, pixel_Color, samples_per_pixel);
             }
         }
 
         std::cerr << "\nDone.\n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-color-depth]: <kbd>[main.cc]</kbd> ray_color() with depth limiting]
+    [Listing [ray-Color-depth]: <kbd>[main.cc]</kbd> ray_Color() with depth limiting]
 </div>
 
 <div class='together'>
@@ -1676,31 +1771,31 @@ fix that now. These spheres should look pretty light (in real life, a light grey
 this is that almost all image viewers assume that the image is “gamma corrected”, meaning the 0 to 1
 values have some transform before being stored as a byte. There are many good reasons for that, but
 for our purposes we just need to be aware of it. To a first approximation, we can use “gamma 2”
-which means raising the color to the power $1/gamma$, or in our simple case ½, which is just
+which means raising the Color to the power $1/gamma$, or in our simple case ½, which is just
 square-root:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    void write_color(std::ostream &out, color pixel_color, int samples_per_pixel) {
-        auto r = pixel_color.x();
-        auto g = pixel_color.y();
-        auto b = pixel_color.z();
+    void write_Color(std::ostream &out, Color pixel_Color, int samples_per_pixel) {
+        auto r = pixel_Color.x();
+        auto g = pixel_Color.y();
+        auto b = pixel_Color.z();
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        // Divide the color by the number of samples and gamma-correct for gamma=2.0.
+        // Divide the Color by the number of samples and gamma-correct for gamma=2.0.
         auto scale = 1.0 / samples_per_pixel;
         r = sqrt(scale * r);
         g = sqrt(scale * g);
         b = sqrt(scale * b);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
-        // Write the translated [0,255] value of each color component.
+        // Write the translated [0,255] value of each Color component.
         out << static_cast<int>(256 * clamp(r, 0.0, 0.999)) << ' '
             << static_cast<int>(256 * clamp(g, 0.0, 0.999)) << ' '
             << static_cast<int>(256 * clamp(b, 0.0, 0.999)) << '\n';
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [write-color-gamma]: <kbd>[color.h]</kbd> write_color(), with gamma correction]
+    [Listing [write-Color-gamma]: <kbd>[Color.h]</kbd> write_Color(), with gamma correction]
 
 </div>
 
@@ -1736,7 +1831,7 @@ The rejection method presented here produces random points in the unit ball offs
 normal. This corresponds to picking directions on the hemisphere with high probability close to the
 normal, and a lower probability of scattering rays at grazing angles. This distribution scales by
 the $\cos^3 (\phi)$ where $\phi$ is the angle from the normal. This is useful since light arriving
-at shallow angles spreads over a larger area, and thus has a lower contribution to the final color.
+at shallow angles spreads over a larger area, and thus has a lower contribution to the final Color.
 
 However, we are interested in a Lambertian distribution, which has a distribution of $\cos (\phi)$.
 True Lambertian has the probability higher for ray scattering close to the normal, but the
@@ -1745,16 +1840,16 @@ sphere, offset along the surface normal. Picking random points on the unit spher
 picking random points _in_ the unit sphere, and then normalizing those.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    inline vec3 random_in_unit_sphere() {
+    inline Vec3 random_in_unit_sphere() {
         ..
     }
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    vec3 random_unit_vector() {
+    Vec3 random_unit_vector() {
         return unit_vector(random_in_unit_sphere());
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-unit-vector]: <kbd>[vec3.h]</kbd> The random_unit_vector() function]
+    [Listing [random-unit-vector]: <kbd>[Vec3.h]</kbd> The random_unit_vector() function]
 
   ![Figure [rand-unitvec]: Generating a random unit vector](raytracinginrust/images/fig-1.10-rand-unitvec.png)
 
@@ -1765,26 +1860,26 @@ This `random_unit_vector()` is a drop-in replacement for the existing `random_in
 function.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    color ray_color(const ray& r, const hittable& world, int depth) {
+    Color ray_Color(const ray& r, const hittable& world, int depth) {
         hit_record rec;
 
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0)
-            return color(0,0,0);
+            return Color(0,0,0);
 
         if (world.hit(r, 0.001, infinity, rec)) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            point3 target = rec.p + rec.normal + random_unit_vector();
+            Point3 target = rec.p + rec.normal + random_unit_vector();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth-1);
+            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
         }
 
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-color-unit-sphere]: <kbd>[main.cc]</kbd> ray_color() with replacement diffuse]
+    [Listing [ray-Color-unit-sphere]: <kbd>[main.cc]</kbd> ray_Color() with replacement diffuse]
 </div>
 
 <div class='together'>
@@ -1831,42 +1926,42 @@ point, with no dependence on the angle from the normal. Many of the first raytra
 this diffuse method (before adopting Lambertian diffuse).
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    vec3 random_in_hemisphere(const vec3& normal) {
-        vec3 in_unit_sphere = random_in_unit_sphere();
+    Vec3 random_in_hemisphere(const Vec3& normal) {
+        Vec3 in_unit_sphere = random_in_unit_sphere();
         if (dot(in_unit_sphere, normal) > 0.0) // In the same hemisphere as the normal
             return in_unit_sphere;
         else
             return -in_unit_sphere;
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-in-hemisphere]: <kbd>[vec3.h]</kbd> The random_in_hemisphere(normal) function]
+    [Listing [random-in-hemisphere]: <kbd>[Vec3.h]</kbd> The random_in_hemisphere(normal) function]
 
 </div>
 
 <div class='together'>
-Plugging the new formula into the `ray_color()` function:
+Plugging the new formula into the `ray_Color()` function:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    color ray_color(const ray& r, const hittable& world, int depth) {
+    Color ray_Color(const ray& r, const hittable& world, int depth) {
         hit_record rec;
 
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0)
-            return color(0,0,0);
+            return Color(0,0,0);
 
         if (world.hit(r, 0.001, infinity, rec)) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            point3 target = rec.p + random_in_hemisphere(rec.normal);
+            Point3 target = rec.p + random_in_hemisphere(rec.normal);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth-1);
+            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
         }
 
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-color-hemisphere]: <kbd>[main.cc]</kbd> ray_color() with hemispherical scattering]
+    [Listing [ray-Color-hemisphere]: <kbd>[main.cc]</kbd> ray_Color() with hemispherical scattering]
 
 Gives us the following image:
 
@@ -1887,11 +1982,11 @@ effect of different diffuse methods on the lighting of the scene.
 Metal
 ====================================================================================================
 
-An Abstract Class for Materials
+A Trait for Materials
 --------------------------------
 If we want different objects to have different materials, we have a design decision. We could have a
 universal material with lots of parameters and different material types just zero out some of those
-parameters. This is not a bad approach. Or we could have an abstract material class that
+parameters. This is not a bad approach. Or we could have a material trait that
 encapsulates behavior. I am a fan of the latter approach. For our program the material needs to do
 two things:
 
@@ -1899,7 +1994,7 @@ two things:
   2. If scattered, say how much the ray should be attenuated.
 
 <div class='together'>
-This suggests the abstract class:
+This suggests the trait:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     #ifndef MATERIAL_H
@@ -1912,13 +2007,13 @@ This suggests the abstract class:
     class material {
         public:
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const = 0;
     };
 
     #endif
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [material-initial]: <kbd>[material.h]</kbd> The material class]
+    [Listing [material-initial]: <kbd>[material.h]</kbd> The material trait]
 </div>
 
 
@@ -1939,15 +2034,15 @@ that the pointer is to a class, which the “class material” in the hittable c
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
     struct hit_record {
-        point3 p;
-        vec3 normal;
+        Point3 p;
+        Vec3 normal;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         shared_ptr<material> mat_ptr;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         double t;
         bool front_face;
 
-        inline void set_face_normal(const ray& r, const vec3& outward_normal) {
+        inline void set_face_normal(const ray& r, const Vec3& outward_normal) {
             front_face = dot(r.direction(), outward_normal) < 0;
             normal = front_face ? outward_normal :-outward_normal;
         }
@@ -1960,11 +2055,11 @@ What we have set up here is that material will tell us how rays interact with th
 `hit_record` is just a way to stuff a bunch of arguments into a struct so we can send them as a
 group. When a ray hits a surface (a particular sphere for example), the material pointer in the
 `hit_record` will be set to point at the material pointer the sphere was given when it was set up in
-`main()` when we start. When the `ray_color()` routine gets the `hit_record` it can call member
+`main()` when we start. When the `ray_Color()` routine gets the `hit_record` it can call member
 functions of the material pointer to find out what ray, if any, is scattered.
 
 <div class='together'>
-To achieve this, we must have a reference to the material for our sphere class to returned
+To achieve this, we must have a reference to the material for our sphere struct to returned
 within `hit_record`. See the highlighted lines below:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -1972,7 +2067,7 @@ within `hit_record`. See the highlighted lines below:
         public:
             sphere() {}
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            sphere(point3 cen, double r, shared_ptr<material> m)
+            sphere(Point3 cen, double r, shared_ptr<material> m)
                 : center(cen), radius(r), mat_ptr(m) {};
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
@@ -1980,7 +2075,7 @@ within `hit_record`. See the highlighted lines below:
                 const ray& r, double t_min, double t_max, hit_record& rec) const override;
 
         public:
-            point3 center;
+            Point3 center;
             double radius;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
             shared_ptr<material> mat_ptr;
@@ -1992,7 +2087,7 @@ within `hit_record`. See the highlighted lines below:
 
         rec.t = root;
         rec.p = r.at(rec.t);
-        vec3 outward_normal = (rec.p - center) / radius;
+        Vec3 outward_normal = (rec.p - center) / radius;
         rec.set_face_normal(r, outward_normal);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         rec.mat_ptr = mat_ptr;
@@ -2015,10 +2110,10 @@ it could be a mixture of those strategies. For Lambertian materials we get this 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     class lambertian : public material {
         public:
-            lambertian(const color& a) : albedo(a) {}
+            lambertian(const Color& a) : albedo(a) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
                 auto scatter_direction = rec.normal + random_unit_vector();
                 scattered = ray(rec.p, scatter_direction);
@@ -2027,10 +2122,10 @@ it could be a mixture of those strategies. For Lambertian materials we get this 
             }
 
         public:
-            color albedo;
+            Color albedo;
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [lambertian-initial]: <kbd>[material.h]</kbd> The lambertian material class]
+    [Listing [lambertian-initial]: <kbd>[material.h]</kbd> The lambertian material struct]
 </div>
 
 Note we could just as well only scatter with some probability $p$ and have attenuation be
@@ -2042,11 +2137,11 @@ result in a zero scatter direction vector. This leads to bad scenarios later on 
 NaNs), so we need to intercept the condition before we pass it on.
 
 <div class='together'>
-In service of this, we'll create a new vector method -- `vec3::near_zero()` -- that returns true if
+In service of this, we'll create a new vector method -- `Vec3::near_zero()` -- that returns true if
 the vector is very close to zero in all dimensions.
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class vec3 {
+    class Vec3 {
         ..
         bool near_zero() const {
             // Return true if the vector is close to zero in all dimensions.
@@ -2056,15 +2151,15 @@ the vector is very close to zero in all dimensions.
         ..
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec3-near-zero]: <kbd>[vec3.h]</kbd> The vec3::near_zero() method]
+    [Listing [Vec3-near-zero]: <kbd>[Vec3.h]</kbd> The Vec3::near_zero() method]
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     class lambertian : public material {
         public:
-            lambertian(const color& a) : albedo(a) {}
+            lambertian(const Color& a) : albedo(a) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
                 auto scatter_direction = rec.normal + random_unit_vector();
 
@@ -2081,7 +2176,7 @@ the vector is very close to zero in all dimensions.
             }
 
         public:
-            color albedo;
+            Color albedo;
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [lambertian-catch-zero]: <kbd>[material.h]</kbd> Lambertian scatter, bullet-proof]
@@ -2104,11 +2199,11 @@ is a unit vector, but $\mathbf{v}$ may not be. The length of $\mathbf{b}$ should
 \cdot \mathbf{n}$. Because $\mathbf{v}$ points in, we will need a minus sign, yielding:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    vec3 reflect(const vec3& v, const vec3& n) {
+    Vec3 reflect(const Vec3& v, const Vec3& n) {
         return v - 2*dot(v,n)*n;
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec3-reflect]: <kbd>[vec3.h]</kbd> vec3 reflection function]
+    [Listing [Vec3-reflect]: <kbd>[Vec3.h]</kbd> Vec3 reflection function]
 </div>
 
 <div class='together'>
@@ -2117,51 +2212,51 @@ The metal material just reflects rays using that formula:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     class metal : public material {
         public:
-            metal(const color& a) : albedo(a) {}
+            metal(const Color& a) : albedo(a) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
-                vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+                Vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
                 scattered = ray(rec.p, reflected);
                 attenuation = albedo;
                 return (dot(scattered.direction(), rec.normal) > 0);
             }
 
         public:
-            color albedo;
+            Color albedo;
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [metal-material]: <kbd>[material.h]</kbd> Metal material with reflectance function]
 </div>
 
 <div class='together'>
-We need to modify the `ray_color()` function to use this:
+We need to modify the `ray_Color()` function to use this:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    color ray_color(const ray& r, const hittable& world, int depth) {
+    Color ray_Color(const ray& r, const hittable& world, int depth) {
         hit_record rec;
 
         // If we've exceeded the ray bounce limit, no more light is gathered.
         if (depth <= 0)
-            return color(0,0,0);
+            return Color(0,0,0);
 
         if (world.hit(r, 0.001, infinity, rec)) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
             ray scattered;
-            color attenuation;
+            Color attenuation;
             if (rec.mat_ptr->scatter(r, rec, attenuation, scattered))
-                return attenuation * ray_color(scattered, world, depth-1);
-            return color(0,0,0);
+                return attenuation * ray_Color(scattered, world, depth-1);
+            return Color(0,0,0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         }
 
-        vec3 unit_direction = unit_vector(r.direction());
+        Vec3 unit_direction = unit_vector(r.direction());
         auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
+        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-color-scatter]: <kbd>[main.cc]</kbd> Ray color with scattered reflectance]
+    [Listing [ray-Color-scatter]: <kbd>[main.cc]</kbd> Ray Color with scattered reflectance]
 </div>
 
 
@@ -2196,15 +2291,15 @@ Now let’s add some metal spheres to our scene:
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-        auto material_center = make_shared<lambertian>(color(0.7, 0.3, 0.3));
-        auto material_left   = make_shared<metal>(color(0.8, 0.8, 0.8));
-        auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2));
+        auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
+        auto material_center = make_shared<lambertian>(Color(0.7, 0.3, 0.3));
+        auto material_left   = make_shared<metal>(Color(0.8, 0.8, 0.8));
+        auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2));
 
-        world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-        world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.0),   0.5, material_center));
-        world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
-        world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+        world.add(make_shared<sphere>(Point3( 0.0, -100.5, -1.0), 100.0, material_ground));
+        world.add(make_shared<sphere>(Point3( 0.0,    0.0, -1.0),   0.5, material_center));
+        world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),   0.5, material_left));
+        world.add(make_shared<sphere>(Point3( 1.0,    0.0, -1.0),   0.5, material_right));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         // Camera
@@ -2218,14 +2313,14 @@ Now let’s add some metal spheres to our scene:
         for (int j = image_height-1; j >= 0; --j) {
             std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
             for (int i = 0; i < image_width; ++i) {
-                color pixel_color(0, 0, 0);
+                Color pixel_Color(0, 0, 0);
                 for (int s = 0; s < samples_per_pixel; ++s) {
                     auto u = (i + random_double()) / (image_width-1);
                     auto v = (j + random_double()) / (image_height-1);
                     ray r = cam.get_ray(u, v);
-                    pixel_color += ray_color(r, world, max_depth);
+                    pixel_Color += ray_Color(r, world, max_depth);
                 }
-                write_color(std::cout, pixel_color, samples_per_pixel);
+                write_Color(std::cout, pixel_Color, samples_per_pixel);
             }
         }
 
@@ -2263,13 +2358,13 @@ absorb those.
     class metal : public material {
         public:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            metal(const color& a, double f) : albedo(a), fuzz(f < 1 ? f : 1) {}
+            metal(const Color& a, double f) : albedo(a), fuzz(f < 1 ? f : 1) {}
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
-                vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
+                Vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
                 scattered = ray(rec.p, reflected + fuzz*random_in_unit_sphere());
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -2278,7 +2373,7 @@ absorb those.
             }
 
         public:
-            color albedo;
+            Color albedo;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
             double fuzz;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
@@ -2295,11 +2390,11 @@ We can try that out by adding fuzziness 0.3 and 1.0 to the metals:
         ..
         // World
 
-        auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-        auto material_center = make_shared<lambertian>(color(0.7, 0.3, 0.3));
+        auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
+        auto material_center = make_shared<lambertian>(Color(0.7, 0.3, 0.3));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto material_left   = make_shared<metal>(color(0.8, 0.8, 0.8), 0.3);
-        auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2), 1.0);
+        auto material_left   = make_shared<metal>(Color(0.8, 0.8, 0.8), 0.3);
+        auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
         ..
     }
@@ -2386,14 +2481,14 @@ We can now rewrite $\mathbf{R'}_{\bot}$ in terms of known quantities:
 When we combine them back together, we can write a function to calculate $\mathbf{R'}$:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
+    Vec3 refract(const Vec3& uv, const Vec3& n, double etai_over_etat) {
         auto cos_theta = fmin(dot(-uv, n), 1.0);
-        vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
-        vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
+        Vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
+        Vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
         return r_out_perp + r_out_parallel;
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [refract]: <kbd>[vec3.h]</kbd> Refraction function]
+    [Listing [refract]: <kbd>[Vec3.h]</kbd> Refraction function]
 </div>
 
 <div class='together'>
@@ -2405,13 +2500,13 @@ And the dielectric material that always refracts is:
             dielectric(double index_of_refraction) : ir(index_of_refraction) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
-                attenuation = color(1.0, 1.0, 1.0);
+                attenuation = Color(1.0, 1.0, 1.0);
                 double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
 
-                vec3 unit_direction = unit_vector(r_in.direction());
-                vec3 refracted = refract(unit_direction, rec.normal, refraction_ratio);
+                Vec3 unit_direction = unit_vector(r_in.direction());
+                Vec3 refracted = refract(unit_direction, rec.normal, refraction_ratio);
 
                 scattered = ray(rec.p, refracted);
                 return true;
@@ -2429,12 +2524,12 @@ And the dielectric material that always refracts is:
 Now we'll update the scene to change the left and center spheres to glass:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
+    auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
     auto material_center = make_shared<dielectric>(1.5);
     auto material_left   = make_shared<dielectric>(1.5);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2), 1.0);
+    auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 1.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [two-glass]: <kbd>[main.cc]</kbd> Changing left and center spheres to glass]
 
@@ -2517,18 +2612,18 @@ And the dielectric material that always refracts (when possible) is:
             dielectric(double index_of_refraction) : ir(index_of_refraction) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
-                attenuation = color(1.0, 1.0, 1.0);
+                attenuation = Color(1.0, 1.0, 1.0);
                 double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
 
-                vec3 unit_direction = unit_vector(r_in.direction());
+                Vec3 unit_direction = unit_vector(r_in.direction());
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
                 double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
                 double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
 
                 bool cannot_refract = refraction_ratio * sin_theta > 1.0;
-                vec3 direction;
+                Vec3 direction;
 
                 if (cannot_refract)
                     direction = reflect(unit_direction, rec.normal);
@@ -2544,7 +2639,7 @@ And the dielectric material that always refracts (when possible) is:
             double ir; // Index of Refraction
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [dielectric]: <kbd>[material.h]</kbd> Dielectric material class with reflection]
+    [Listing [dielectric]: <kbd>[material.h]</kbd> Dielectric material struct with reflection]
 </div>
 
 <div class='together'>
@@ -2552,10 +2647,10 @@ Attenuation is always 1 -- the glass surface absorbs nothing. If we try that out
 parameters:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-    auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
+    auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
+    auto material_center = make_shared<lambertian>(Color(0.1, 0.2, 0.5));
     auto material_left   = make_shared<dielectric>(1.5);
-    auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2), 0.0);
+    auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 0.0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [scene-dielectric]: <kbd>[main.cc]</kbd> Scene with dielectric and shiny sphere]
 
@@ -2581,17 +2676,17 @@ material:
             dielectric(double index_of_refraction) : ir(index_of_refraction) {}
 
             virtual bool scatter(
-                const ray& r_in, const hit_record& rec, color& attenuation, ray& scattered
+                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
             ) const override {
-                attenuation = color(1.0, 1.0, 1.0);
+                attenuation = Color(1.0, 1.0, 1.0);
                 double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
 
-                vec3 unit_direction = unit_vector(r_in.direction());
+                Vec3 unit_direction = unit_vector(r_in.direction());
                 double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
                 double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
 
                 bool cannot_refract = refraction_ratio * sin_theta > 1.0;
-                vec3 direction;
+                Vec3 direction;
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
                 if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_double())
@@ -2630,13 +2725,13 @@ the geometry is unaffected, but the surface normal points inward. This can be us
 make a hollow glass sphere:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-    world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.0),   0.5, material_center));
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
+    world.add(make_shared<sphere>(Point3( 0.0, -100.5, -1.0), 100.0, material_ground));
+    world.add(make_shared<sphere>(Point3( 0.0,    0.0, -1.0),   0.5, material_center));
+    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),   0.5, material_left));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),  -0.4, material_left));
+    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),  -0.4, material_left));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+    world.add(make_shared<sphere>(Point3( 1.0,    0.0, -1.0),   0.5, material_right));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [scene-hollow-glass]: <kbd>[main.cc]</kbd> Scene with hollow glass sphere]
 </div>
@@ -2689,10 +2784,10 @@ This implies $h = \tan(\frac{\theta}{2})$. Our camera now becomes:
 
                 auto focal_length = 1.0;
 
-                origin = point3(0, 0, 0);
-                horizontal = vec3(viewport_width, 0.0, 0.0);
-                vertical = vec3(0.0, viewport_height, 0.0);
-                lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+                origin = Point3(0, 0, 0);
+                horizontal = Vec3(viewport_width, 0.0, 0.0);
+                vertical = Vec3(0.0, viewport_height, 0.0);
+                lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
             }
 
             ray get_ray(double u, double v) const {
@@ -2700,10 +2795,10 @@ This implies $h = \tan(\frac{\theta}{2})$. Our camera now becomes:
             }
 
         private:
-            point3 origin;
-            point3 lower_left_corner;
-            vec3 horizontal;
-            vec3 vertical;
+            Point3 origin;
+            Point3 lower_left_corner;
+            Vec3 horizontal;
+            Vec3 vertical;
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [camera-fov]: <kbd>[camera.h]</kbd> Camera with adjustable field-of-view (fov)]
@@ -2722,11 +2817,11 @@ When calling it with camera `cam(90, aspect_ratio)` and these spheres:
         auto R = cos(pi/4);
         hittable_list world;
 
-        auto material_left  = make_shared<lambertian>(color(0,0,1));
-        auto material_right = make_shared<lambertian>(color(1,0,0));
+        auto material_left  = make_shared<lambertian>(Color(0,0,1));
+        auto material_right = make_shared<lambertian>(Color(1,0,0));
 
-        world.add(make_shared<sphere>(point3(-R, 0, -1), R, material_left));
-        world.add(make_shared<sphere>(point3( R, 0, -1), R, material_right));
+        world.add(make_shared<sphere>(Point3(-R, 0, -1), R, material_left));
+        world.add(make_shared<sphere>(Point3( R, 0, -1), R, material_right));
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
@@ -2783,9 +2878,9 @@ camera horizontally level until you decide to experiment with crazy camera angle
         public:
             camera(
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                point3 lookfrom,
-                point3 lookat,
-                vec3   vup,
+                Point3 lookfrom,
+                Point3 lookat,
+                Vec3   vup,
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
                 double vfov, // vertical field-of-view in degrees
                 double aspect_ratio
@@ -2816,10 +2911,10 @@ camera horizontally level until you decide to experiment with crazy camera angle
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
 
         private:
-            point3 origin;
-            point3 lower_left_corner;
-            vec3 horizontal;
-            vec3 vertical;
+            Point3 origin;
+            Point3 lower_left_corner;
+            Vec3 horizontal;
+            Vec3 vertical;
     };
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [camera-orient]: <kbd>[camera.h]</kbd> Positionable and orientable camera]
@@ -2830,18 +2925,18 @@ We'll change back to the prior scene, and use the new viewpoint:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     hittable_list world;
 
-    auto material_ground = make_shared<lambertian>(color(0.8, 0.8, 0.0));
-    auto material_center = make_shared<lambertian>(color(0.1, 0.2, 0.5));
+    auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
+    auto material_center = make_shared<lambertian>(Color(0.1, 0.2, 0.5));
     auto material_left   = make_shared<dielectric>(1.5);
-    auto material_right  = make_shared<metal>(color(0.8, 0.6, 0.2), 0.0);
+    auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 0.0);
 
-    world.add(make_shared<sphere>(point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-    world.add(make_shared<sphere>(point3( 0.0,    0.0, -1.0),   0.5, material_center));
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0),   0.5, material_left));
-    world.add(make_shared<sphere>(point3(-1.0,    0.0, -1.0), -0.45, material_left));
-    world.add(make_shared<sphere>(point3( 1.0,    0.0, -1.0),   0.5, material_right));
+    world.add(make_shared<sphere>(Point3( 0.0, -100.5, -1.0), 100.0, material_ground));
+    world.add(make_shared<sphere>(Point3( 0.0,    0.0, -1.0),   0.5, material_center));
+    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),   0.5, material_left));
+    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0), -0.45, material_left));
+    world.add(make_shared<sphere>(Point3( 1.0,    0.0, -1.0),   0.5, material_right));
 
-    camera cam(point3(-2,2,1), point3(0,0,-1), vec3(0,1,0), 90, aspect_ratio);
+    camera cam(Point3(-2,2,1), Point3(0,0,-1), Vec3(0,1,0), 90, aspect_ratio);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [scene-free-view]: <kbd>[main.cc]</kbd> Scene with alternate viewpoint]
 
@@ -2852,7 +2947,7 @@ to get:
 And we can change field of view:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    camera cam(point3(-2,2,1), point3(0,0,-1), vec3(0,1,0), 20, aspect_ratio);
+    camera cam(Point3(-2,2,1), Point3(0,0,-1), Vec3(0,1,0), 20, aspect_ratio);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [change-field-view]: <kbd>[main.cc]</kbd> Change field of view]
 
@@ -2920,23 +3015,23 @@ defocus disk of radius zero (no blur at all), so all rays originated at the disk
 (`lookfrom`).
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    vec3 random_in_unit_disk() {
+    Vec3 random_in_unit_disk() {
         while (true) {
-            auto p = vec3(random_double(-1,1), random_double(-1,1), 0);
+            auto p = Vec3(random_double(-1,1), random_double(-1,1), 0);
             if (p.length_squared() >= 1) continue;
             return p;
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [rand-in-unit-disk]: <kbd>[vec3.h]</kbd> Generate random point inside unit disk]
+    [Listing [rand-in-unit-disk]: <kbd>[Vec3.h]</kbd> Generate random point inside unit disk]
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     class camera {
         public:
             camera(
-                point3 lookfrom,
-                point3 lookat,
-                vec3   vup,
+                Point3 lookfrom,
+                Point3 lookat,
+                Vec3   vup,
                 double vfov, // vertical field-of-view in degrees
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
                 double aspect_ratio,
@@ -2969,8 +3064,8 @@ defocus disk of radius zero (no blur at all), so all rays originated at the disk
 
             ray get_ray(double s, double t) const {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                vec3 rd = lens_radius * random_in_unit_disk();
-                vec3 offset = u * rd.x() + v * rd.y();
+                Vec3 rd = lens_radius * random_in_unit_disk();
+                Vec3 offset = u * rd.x() + v * rd.y();
 
                 return ray(
                     origin + offset,
@@ -2980,12 +3075,12 @@ defocus disk of radius zero (no blur at all), so all rays originated at the disk
             }
 
         private:
-            point3 origin;
-            point3 lower_left_corner;
-            vec3 horizontal;
-            vec3 vertical;
+            Point3 origin;
+            Point3 lower_left_corner;
+            Vec3 horizontal;
+            Vec3 vertical;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            vec3 u, v, w;
+            Vec3 u, v, w;
             double lens_radius;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     };
@@ -2996,9 +3091,9 @@ defocus disk of radius zero (no blur at all), so all rays originated at the disk
 Using a big aperture:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    point3 lookfrom(3,3,2);
-    point3 lookat(0,0,-1);
-    vec3 vup(0,1,0);
+    Point3 lookfrom(3,3,2);
+    Point3 lookat(0,0,-1);
+    Vec3 vup(0,1,0);
     auto dist_to_focus = (lookfrom-lookat).length();
     auto aperture = 2.0;
 
@@ -3026,25 +3121,25 @@ First let’s make the image on the cover of this book -- lots of random spheres
     hittable_list random_scene() {
         hittable_list world;
 
-        auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
-        world.add(make_shared<sphere>(point3(0,-1000,0), 1000, ground_material));
+        auto ground_material = make_shared<lambertian>(Color(0.5, 0.5, 0.5));
+        world.add(make_shared<sphere>(Point3(0,-1000,0), 1000, ground_material));
 
         for (int a = -11; a < 11; a++) {
             for (int b = -11; b < 11; b++) {
                 auto choose_mat = random_double();
-                point3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
+                Point3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
 
-                if ((center - point3(4, 0.2, 0)).length() > 0.9) {
+                if ((center - Point3(4, 0.2, 0)).length() > 0.9) {
                     shared_ptr<material> sphere_material;
 
                     if (choose_mat < 0.8) {
                         // diffuse
-                        auto albedo = color::random() * color::random();
+                        auto albedo = Color::random() * Color::random();
                         sphere_material = make_shared<lambertian>(albedo);
                         world.add(make_shared<sphere>(center, 0.2, sphere_material));
                     } else if (choose_mat < 0.95) {
                         // metal
-                        auto albedo = color::random(0.5, 1);
+                        auto albedo = Color::random(0.5, 1);
                         auto fuzz = random_double(0, 0.5);
                         sphere_material = make_shared<metal>(albedo, fuzz);
                         world.add(make_shared<sphere>(center, 0.2, sphere_material));
@@ -3058,13 +3153,13 @@ First let’s make the image on the cover of this book -- lots of random spheres
         }
 
         auto material1 = make_shared<dielectric>(1.5);
-        world.add(make_shared<sphere>(point3(0, 1, 0), 1.0, material1));
+        world.add(make_shared<sphere>(Point3(0, 1, 0), 1.0, material1));
 
-        auto material2 = make_shared<lambertian>(color(0.4, 0.2, 0.1));
-        world.add(make_shared<sphere>(point3(-4, 1, 0), 1.0, material2));
+        auto material2 = make_shared<lambertian>(Color(0.4, 0.2, 0.1));
+        world.add(make_shared<sphere>(Point3(-4, 1, 0), 1.0, material2));
 
-        auto material3 = make_shared<metal>(color(0.7, 0.6, 0.5), 0.0);
-        world.add(make_shared<sphere>(point3(4, 1, 0), 1.0, material3));
+        auto material3 = make_shared<metal>(Color(0.7, 0.6, 0.5), 0.0);
+        world.add(make_shared<sphere>(Point3(4, 1, 0), 1.0, material3));
 
         return world;
     }
@@ -3096,10 +3191,10 @@ First let’s make the image on the cover of this book -- lots of random spheres
 
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        point3 lookfrom(13,2,3);
-        point3 lookat(0,0,0);
+        Point3 lookfrom(13,2,3);
+        Point3 lookat(0,0,0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        vec3 vup(0,1,0);
+        Vec3 vup(0,1,0);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
         auto dist_to_focus = 10.0;
         auto aperture = 0.1;
