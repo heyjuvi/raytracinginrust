@@ -70,7 +70,7 @@ Whenever you start a renderer, you need a way to see an image. The most straight
 write it to a file. The catch is, there are so many formats. Many of those are complex. I always
 start with a plain text ppm file. Here’s a nice description from Wikipedia:
 
-  ![Figure [ppm]: PPM Example](raytracinginrust/images/fig-1.01-ppm.jpg)
+  ![Figure [ppm]: PPM Example](images/fig-1.01-ppm.jpg)
 
 <div class='together'>
 Let’s make some Rust code to output such a thing:
@@ -132,7 +132,7 @@ Typically this is done from the command-line by using the `>` redirection operat
 Opening the output file (in `ToyViewer` on my Mac, but try it in your favorite viewer and Google
 “ppm viewer” if your viewer doesn’t support it) shows this result:
 
-  ![Image 1: First PPM image](raytracinginrust/images/img-1.01-first-ppm-image.png class=pixel)
+  ![Image 1: First PPM image](images/img-1.01-first-ppm-image.png class=pixel)
 
 </div>
 
@@ -335,7 +335,7 @@ Here’s the top part of my `Vec3` struct and its trait implementations:
     [Listing [Vec3-struct]: <kbd>[vec.rs]</kbd> Vec3 struct]
 </div>
 
-We use `double` here, but some ray tracers use `float`. Either one is fine -- follow your own
+We use `f64` here, but some ray tracers use `f32`. Either one is fine -- follow your own
 tastes.
 
 
@@ -445,9 +445,6 @@ Now we can change our main to use this:
         }
     
         eprintln!("Done.");
-    
-        let mut foo = Vec3::new(0.0, 0.0, 0.0);
-        foo -= Vec3::new(1.0, 0.0, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [ppm-2]: <kbd>[main.rs]</kbd> Final code for the first PPM image]
@@ -464,12 +461,12 @@ The ray Struct
 The one thing that all ray tracers have is a ray struct and a computation of what Color is seen along
 a ray. Let’s think of a ray as a function $\mathbf{P}(t) = \mathbf{A} + t \mathbf{b}$. Here
 $\mathbf{P}$ is a 3D position along a line in 3D. $\mathbf{A}$ is the ray origin and $\mathbf{b}$ is
-the ray direction. The ray parameter $t$ is a real number (`double` in the code). Plug in a
+the ray direction. The ray parameter $t$ is a real number (`f64` in the code). Plug in a
 different $t$ and $\mathbf{P}(t)$ moves the point along the ray. Add in negative $t$ values and you
 can go anywhere on the 3D line. For positive $t$, you get only the parts in front of $\mathbf{A}$,
 and this is what is often called a half-line or ray.
 
-  ![Figure [lerp]: Linear interpolation](raytracinginrust/images/fig-1.02-lerp.jpg)
+  ![Figure [lerp]: Linear interpolation](images/fig-1.02-lerp.jpg)
 
 </div>
 
@@ -536,14 +533,15 @@ corner, and use two offset vectors along the screen sides to move the ray endpoi
 screen. Note that I do not make the ray direction a unit length vector because I think not doing
 that makes for simpler and slightly faster code.
 
-  ![Figure [cam-geom]: Camera geometry](raytracinginrust/images/fig-1.03-cam-geom.jpg)
+  ![Figure [cam-geom]: Camera geometry](images/fig-1.03-cam-geom.jpg)
 
 <div class='together'>
 Below in code, the ray `r` goes to approximately the pixel centers (I won’t worry about exactness
 for now because we’ll add antialiasing later):
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     mod vec;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
     mod ray;
     
     use vec::{Vec3, Point3, Color};
@@ -561,7 +559,7 @@ for now because we’ll add antialiasing later):
         // Image
         const ASPECT_RATIO: f64 = 16.0 / 9.0;
         const IMAGE_WIDTH: u64 = 256;
-        const IMAGE_HEIGHT: u64 = 256;
+        const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
     
         // Camera
         let viewport_height = 2.0;
@@ -571,7 +569,8 @@ for now because we’ll add antialiasing later):
         let origin = Point3::new(0.0, 0.0, 0.0);
         let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
         let vertical = Vec3::new(0.0, viewport_height, 0.0);
-        let lower_left_corner = origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0.0, 0.0, focal_length);
+        let lower_left_corner = origin - horizontal / 2.0 - vertical / 2.0
+                              - Vec3::new(0.0, 0.0, focal_length);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     
         println!("P3");
@@ -582,78 +581,20 @@ for now because we’ll add antialiasing later):
             eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
     
             for i in 0..IMAGE_WIDTH {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
                 let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
                 let v = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
     
-                let r = Ray::new(origin, lower_left_corner + u * horizontal + v * vertical - origin);
+                let r = Ray::new(origin,
+                                 lower_left_corner + u * horizontal + v * vertical - origin);
                 let pixel_color = ray_color(&r);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     
                 println!("{}", pixel_color.format_color());
             }
         }
     
         eprintln!("Done.");
-    
-        let mut foo = Vec3::new(0.0, 0.0, 0.0);
-        foo -= Vec3::new(1.0, 0.0, 1.0);
-    }
-
-    #include "Color.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "ray.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #include "Vec3.h"
-
-    #include <iostream>
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    Color ray_Color(const ray& r) {
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
-    }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-    int main() {
-
-        // Image
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        const auto aspect_ratio = 16.0 / 9.0;
-        const int image_width = 400;
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-
-        // Camera
-
-        auto viewport_height = 2.0;
-        auto viewport_width = aspect_ratio * viewport_height;
-        auto focal_length = 1.0;
-
-        auto origin = Point3(0, 0, 0);
-        auto horizontal = Vec3(viewport_width, 0, 0);
-        auto vertical = Vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        // Render
-
-        std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                auto u = double(i) / (image_width-1);
-                auto v = double(j) / (image_height-1);
-                ray r(origin, lower_left_corner + u*horizontal + v*vertical - origin);
-                Color pixel_Color = ray_Color(r);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                write_Color(std::cout, pixel_Color);
-            }
-        }
-
-        std::cerr << "\nDone.\n";
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [main-blue-white-blend]: <kbd>[main.rs]</kbd> Rendering a blue-to-white gradient]
@@ -674,7 +615,7 @@ interpolation”, or “lerp” for short, between two things. A lerp is always 
 with $t$ going from zero to one. In our case this produces:
 
   ![Image 2: A blue-to-white gradient depending on ray Y coordinate
-  ](raytracinginrust/images/img-1.02-blue-to-white.png class=pixel)
+  ](images/img-1.02-blue-to-white.png class=pixel)
 
 </div>
 
@@ -748,7 +689,7 @@ and there is a square root part that is either positive (meaning two real soluti
 (meaning no real solutions), or zero (meaning one real solution). In graphics, the algebra almost
 always relates very directly to the geometry. What we have is:
 
-  ![Figure [ray-sphere]: Ray-sphere intersection results](raytracinginrust/images/fig-1.04-ray-sphere.jpg)
+  ![Figure [ray-sphere]: Ray-sphere intersection results](images/fig-1.04-ray-sphere.jpg)
 
 </div>
 
@@ -759,36 +700,36 @@ Creating Our First Raytraced Image
 If we take that math and hard-code it into our program, we can test it by Coloring red any pixel
 that hits a small sphere we place at -1 on the z-axis:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    bool hit_sphere(const Point3& center, double radius, const ray& r) {
-        Vec3 oc = r.origin() - center;
-        auto a = dot(r.direction(), r.direction());
-        auto b = 2.0 * dot(oc, r.direction());
-        auto c = dot(oc, oc) - radius*radius;
-        auto discriminant = b*b - 4*a*c;
-        return (discriminant > 0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> bool {
+        let oc = r.origin() - center;
+        let a = r.direction().dot(r.direction());
+        let b = 2.0 * oc.dot(r.direction());
+        let c = oc.dot(oc) - radius * radius;
+        let discriminant = b * b - 4.0 * a * c;
+        discriminant > 0.0
     }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Color ray_Color(const ray& r) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        if (hit_sphere(Point3(0,0,-1), 0.5, r))
-            return Color(1, 0, 0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+    fn ray_color(r: &Ray) -> Color {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        if hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, r) {
+            return Color::new(1.0, 0.0, 0.0);
+        }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        let unit_direction = r.direction().normalized();
+        let t = 0.5 * (unit_direction.y() + 1.0);
+        (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-red-sphere]: <kbd>[main.cc]</kbd> Rendering a red sphere]
+    [Listing [main-red-sphere]: <kbd>[main.rs]</kbd> Rendering a red sphere]
 </div>
 
 <div class='together'>
 What we get is this:
 
-  ![Image 3: A simple red sphere](raytracinginrust/images/img-1.03-red-sphere.png class=pixel)
+  ![Image 3: A simple red sphere](images/img-1.03-red-sphere.png class=pixel)
 
 </div>
 
@@ -813,7 +754,7 @@ yes, but I won’t enforce that in the code. This could allow subtle bugs, so be
 personal preference as are most design decisions like that. For a sphere, the outward normal is in
 the direction of the hit point minus the center:
 
-  ![Figure [sphere-normal]: Sphere surface-normal geometry](raytracinginrust/images/fig-1.05-sphere-normal.jpg)
+  ![Figure [sphere-normal]: Sphere surface-normal geometry](images/fig-1.05-sphere-normal.jpg)
 
 <div class='together'>
 On the earth, this implies that the vector from the earth’s center to you points straight up. Let’s
@@ -826,47 +767,46 @@ one sphere in the scene, and it's directly in front of the camera, so we won't w
 values of $t$ yet. We'll just assume the closest hit point (smallest $t$). These changes in the code
 let us compute and visualize $\mathbf{n}$:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    double hit_sphere(const Point3& center, double radius, const ray& r) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        Vec3 oc = r.origin() - center;
-        auto a = dot(r.direction(), r.direction());
-        auto b = 2.0 * dot(oc, r.direction());
-        auto c = dot(oc, oc) - radius*radius;
-        auto discriminant = b*b - 4*a*c;
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        if (discriminant < 0) {
-            return -1.0;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64 {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        let oc = r.origin() - center;
+        let a = r.direction().dot(r.direction());
+        let b = 2.0 * oc.dot(r.direction());
+        let c = oc.dot(oc) - radius * radius;
+        let discriminant = b * b - 4.0 * a * c;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    
+        if discriminant < 0.0 {
+            -1.0
         } else {
-            return (-b - sqrt(discriminant) ) / (2.0*a);
+            (-b - discriminant.sqrt()) / (2.0 * a)
         }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     }
-
-    Color ray_Color(const ray& r) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto t = hit_sphere(Point3(0,0,-1), 0.5, r);
-        if (t > 0.0) {
-            Vec3 N = unit_vector(r.at(t) - Vec3(0,0,-1));
-            return 0.5*Color(N.x()+1, N.y()+1, N.z()+1);
+    
+    fn ray_color(r: &Ray) -> Color {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let t = hit_sphere(Point3::new(0.0, 0.0, -1.0), 0.5, r);
+        if t > 0.0 {
+            let n = (r.at(t) - Vec3::new(0.0, 0.0, -1.0)).normalized();
+            return 0.5 * Color::new(n.x() + 1.0, n.y() + 1.0, n.z() + 1.0);
         }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        Vec3 unit_direction = unit_vector(r.direction());
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        t = 0.5*(unit_direction.y() + 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        let unit_direction = r.direction().normalized();
+        let t = 0.5 * (unit_direction.y() + 1.0);
+        (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [render-surface-normal]: <kbd>[main.cc]</kbd> Rendering surface normals on a sphere]
+    [Listing [render-surface-normal]: <kbd>[main.rs]</kbd> Rendering surface normals on a sphere]
 </div>
 
 <div class='together'>
 And that yields this picture:
 
   ![Image 4: A sphere Colored according to its normal vectors
-  ](raytracinginrust/images/img-1.04-normals-sphere.png class=pixel)
+  ](images/img-1.04-normals-sphere.png class=pixel)
 
 </div>
 
@@ -875,22 +815,22 @@ Simplifying the Ray-Sphere Intersection Code
 ---------------------------------------------
 Let’s revisit the ray-sphere equation:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    double hit_sphere(const Point3& center, double radius, const ray& r) {
-        Vec3 oc = r.origin() - center;
-        auto a = dot(r.direction(), r.direction());
-        auto b = 2.0 * dot(oc, r.direction());
-        auto c = dot(oc, oc) - radius*radius;
-        auto discriminant = b*b - 4*a*c;
-
-        if (discriminant < 0) {
-            return -1.0;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64 {
+        let oc = r.origin() - center;
+        let a = r.direction().dot(r.direction());
+        let b = 2.0 * oc.dot(r.direction());
+        let c = oc.dot(oc) - radius * radius;
+        let discriminant = b * b - 4.0 * a * c;
+    
+        if discriminant < 0.0 {
+            -1.0
         } else {
-            return (-b - sqrt(discriminant) ) / (2.0*a);
+            (-b - discriminant.sqrt()) / (2.0 * a)
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-sphere-before]: <kbd>[main.cc]</kbd> Ray-sphere intersection code (before)]
+    [Listing [ray-sphere-before]: <kbd>[main.rs]</kbd> Ray-sphere intersection code (before)]
 
 First, recall that a vector dotted with itself is equal to the squared length of that vector.
 
@@ -907,26 +847,26 @@ quadratic equation if $b = 2h$:
 
 Using these observations, we can now simplify the sphere-intersection code to this:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    double hit_sphere(const Point3& center, double radius, const ray& r) {
-        Vec3 oc = r.origin() - center;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto a = r.direction().length_squared();
-        auto half_b = dot(oc, r.direction());
-        auto c = oc.length_squared() - radius*radius;
-        auto discriminant = half_b*half_b - a*c;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        if (discriminant < 0) {
-            return -1.0;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn hit_sphere(center: Point3, radius: f64, r: &Ray) -> f64 {
+        let oc = r.origin() - center;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let a = r.direction().length().powi(2);
+        let half_b = oc.dot(r.direction());
+        let c = oc.length().powi(2) - radius * radius;
+        let discriminant = half_b * half_b - a * c;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        if discriminant < 0.0 {
+            -1.0
         } else {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            return (-half_b - sqrt(discriminant) ) / a;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            (-half_b - discriminant.sqrt()) / a
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-sphere-after]: <kbd>[main.cc]</kbd> Ray-sphere intersection code (after)]
+    [Listing [ray-sphere-after]: <kbd>[main.rs]</kbd> Ray-sphere intersection code (after)]
 
 
 An Abstraction for Hittable Objects
@@ -1037,7 +977,7 @@ the sphere, the normal will point outward, but if the ray is inside the sphere, 
 point inward.
 
   ![Figure [normal-sides]: Possible directions for sphere surface-normal geometry
-  ](raytracinginrust/images/fig-1.06-normal-sides.jpg)
+  ](images/fig-1.06-normal-sides.jpg)
 
 </div>
 
@@ -1369,7 +1309,7 @@ This yields a picture that is really just a visualization of where the spheres a
 surface normal. This is often a great way to look at your model for flaws and characteristics.
 
   ![Image 5: Resulting render of normals-Colored sphere with ground
-  ](raytracinginrust/images/img-1.05-normals-sphere-ground.png class=pixel)
+  ](images/img-1.05-normals-sphere-ground.png class=pixel)
 
 </div>
 
@@ -1437,7 +1377,7 @@ Generating Pixels with Multiple Samples
 For a given pixel we have several samples within that pixel and send rays through each of the
 samples. The Colors of these rays are then averaged:
 
-  ![Figure [pixel-samples]: Pixel samples](raytracinginrust/images/fig-1.07-pixel-samples.jpg)
+  ![Figure [pixel-samples]: Pixel samples](images/fig-1.07-pixel-samples.jpg)
 
 </div>
 
@@ -1577,7 +1517,7 @@ Main is also changed:
 Zooming into the image that is produced, we can see the difference in edge pixels.
 
   ![Image 6: Before and after antialiasing
-  ](raytracinginrust/images/img-1.06-antialias-before-after.png class=pixel)
+  ](images/img-1.06-antialias-before-after.png class=pixel)
 
 
 
@@ -1599,7 +1539,7 @@ modulate that with their own intrinsic Color. Light that reflects off a diffuse 
 direction randomized. So, if we send three rays into a crack between two diffuse surfaces they will
 each have different random behavior:
 
-  ![Figure [light-bounce]: Light ray bounces](raytracinginrust/images/fig-1.08-light-bounce.jpg)
+  ![Figure [light-bounce]: Light ray bounces](images/fig-1.08-light-bounce.jpg)
 
 </div>
 
@@ -1623,7 +1563,7 @@ as the ray origin. Pick a random point $\mathbf{S}$ inside this unit radius sphe
 from the hit point $\mathbf{P}$ to the random point $\mathbf{S}$ (this is the vector
 $(\mathbf{S}-\mathbf{P})$):
 
-  ![Figure [rand-vec]: Generating a random diffuse bounce ray](raytracinginrust/images/fig-1.09-rand-vec.jpg)
+  ![Figure [rand-vec]: Generating a random diffuse bounce ray](images/fig-1.09-rand-vec.jpg)
 
 </div>
 
@@ -1757,7 +1697,7 @@ depth, returning no light contribution at the maximum depth:
 <div class='together'>
 This gives us:
 
-  ![Image 7: First render of a diffuse sphere](raytracinginrust/images/img-1.07-first-diffuse.png class=pixel)
+  ![Image 7: First render of a diffuse sphere](images/img-1.07-first-diffuse.png class=pixel)
 
 </div>
 
@@ -1803,7 +1743,7 @@ square-root:
 That yields light grey, as we desire:
 
   ![Image 8: Diffuse sphere, with gamma correction
-  ](raytracinginrust/images/img-1.08-gamma-correct.png class=pixel)
+  ](images/img-1.08-gamma-correct.png class=pixel)
 
 </div>
 
@@ -1851,7 +1791,7 @@ picking random points _in_ the unit sphere, and then normalizing those.
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [random-unit-vector]: <kbd>[Vec3.h]</kbd> The random_unit_vector() function]
 
-  ![Figure [rand-unitvec]: Generating a random unit vector](raytracinginrust/images/fig-1.10-rand-unitvec.png)
+  ![Figure [rand-unitvec]: Generating a random unit vector](images/fig-1.10-rand-unitvec.png)
 
 </div>
 
@@ -1886,7 +1826,7 @@ function.
 After rendering we get a similar image:
 
   ![Image 9: Correct rendering of Lambertian spheres
-  ](raytracinginrust/images/img-1.09-correct-lambertian.png class=pixel)
+  ](images/img-1.09-correct-lambertian.png class=pixel)
 
 It's hard to tell the difference between these two diffuse methods, given that our scene of two
 spheres is so simple, but you should be able to notice two important visual differences:
@@ -1966,7 +1906,7 @@ Plugging the new formula into the `ray_Color()` function:
 Gives us the following image:
 
   ![Image 10: Rendering of diffuse spheres with hemispherical scattering
-  ](raytracinginrust/images/img-1.10-rand-hemispherical.png class=pixel)
+  ](images/img-1.10-rand-hemispherical.png class=pixel)
 
 </div>
 
@@ -2189,7 +2129,7 @@ Mirrored Light Reflection
 For smooth metals the ray won’t be randomly scattered. The key math is: how does a ray get
 reflected from a metal mirror? Vector math is our friend here:
 
-  ![Figure [reflection]: Ray reflection](raytracinginrust/images/fig-1.11-reflection.jpg)
+  ![Figure [reflection]: Ray reflection](images/fig-1.11-reflection.jpg)
 
 </div>
 
@@ -2333,7 +2273,7 @@ Now let’s add some metal spheres to our scene:
 <div class='together'>
 Which gives:
 
-  ![Image 11: Shiny metal](raytracinginrust/images/img-1.11-metal-shiny.png class=pixel)
+  ![Image 11: Shiny metal](images/img-1.11-metal-shiny.png class=pixel)
 
 </div>
 
@@ -2344,7 +2284,7 @@ Fuzzy Reflection
 We can also randomize the reflected direction by using a small sphere and choosing a new endpoint
 for the ray:
 
-  ![Figure [reflect-fuzzy]: Generating fuzzed reflection rays](raytracinginrust/images/fig-1.12-reflect-fuzzy.jpg)
+  ![Figure [reflect-fuzzy]: Generating fuzzed reflection rays](images/fig-1.12-reflect-fuzzy.jpg)
 
 </div>
 
@@ -2401,7 +2341,7 @@ We can try that out by adding fuzziness 0.3 and 1.0 to the metals:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [metal-fuzz-spheres]: <kbd>[main.cc]</kbd> Metal spheres with fuzziness]
 
-  ![Image 12: Fuzzed metal](raytracinginrust/images/img-1.12-metal-fuzz.png class=pixel)
+  ![Image 12: Fuzzed metal](images/img-1.12-metal-fuzz.png class=pixel)
 
 
 
@@ -2421,7 +2361,7 @@ The hardest part to debug is the refracted ray. I usually first just have all th
 there is a refraction ray at all. For this project, I tried to put two glass balls in our scene, and
 I got this (I have not told you how to do this right or wrong yet, but soon!):
 
-  ![Image 13: Glass first](raytracinginrust/images/img-1.13-glass-first.png class=pixel)
+  ![Image 13: Glass first](images/img-1.13-glass-first.png class=pixel)
 
 </div>
 
@@ -2441,7 +2381,7 @@ Where $\theta$ and $\theta'$ are the angles from the normal, and $\eta$ and $\et
 "eta" and "eta prime") are the refractive indices (typically air = 1.0, glass = 1.3–1.7, diamond =
 2.4). The geometry is:
 
-  ![Figure [refraction]: Ray refraction](raytracinginrust/images/fig-1.13-refraction.jpg)
+  ![Figure [refraction]: Ray refraction](images/fig-1.13-refraction.jpg)
 
 </div>
 
@@ -2538,7 +2478,7 @@ Now we'll update the scene to change the left and center spheres to glass:
 This gives us the following result:
 
   ![Image 14: Glass sphere that always refracts
-  ](raytracinginrust/images/img-1.14-glass-always-refract.png class=pixel)
+  ](images/img-1.14-glass-always-refract.png class=pixel)
 
 
 Total Internal Reflection
@@ -2657,7 +2597,7 @@ parameters:
 We get:
 
   ![Image 15: Glass sphere that sometimes refracts
-  ](raytracinginrust/images/img-1.15-glass-sometimes-refract.png class=pixel)
+  ](images/img-1.15-glass-sometimes-refract.png class=pixel)
 
 </div>
 
@@ -2739,7 +2679,7 @@ make a hollow glass sphere:
 <div class='together'>
 This gives:
 
-  ![Image 16: A hollow glass sphere](raytracinginrust/images/img-1.16-glass-hollow.png class=pixel)
+  ![Image 16: A hollow glass sphere](images/img-1.16-glass-hollow.png class=pixel)
 
 </div>
 
@@ -2761,7 +2701,7 @@ Camera Viewing Geometry
 I first keep the rays coming from the origin and heading to the $z = -1$ plane. We could make it the
 $z = -2$ plane, or whatever, as long as we made $h$ a ratio to that distance. Here is our setup:
 
-  ![Figure [cam-view-geom]: Camera viewing geometry](raytracinginrust/images/fig-1.14-cam-view-geom.jpg)
+  ![Figure [cam-view-geom]: Camera viewing geometry](images/fig-1.14-cam-view-geom.jpg)
 
 </div>
 
@@ -2843,7 +2783,7 @@ When calling it with camera `cam(90, aspect_ratio)` and these spheres:
 
 gives:
 
-  ![Image 17: A wide-angle view](raytracinginrust/images/img-1.17-wide-view.png class=pixel)
+  ![Image 17: A wide-angle view](images/img-1.17-wide-view.png class=pixel)
 
 </div>
 
@@ -2859,14 +2799,14 @@ lookat-lookfrom axis. Another way to think about it is that even if you keep `lo
 constant, you can still rotate your head around your nose. What we need is a way to specify an “up”
 vector for the camera. This up vector should lie in the plane orthogonal to the view direction.
 
-  ![Figure [cam-view-dir]: Camera view direction](raytracinginrust/images/fig-1.15-cam-view-dir.jpg)
+  ![Figure [cam-view-dir]: Camera view direction](images/fig-1.15-cam-view-dir.jpg)
 
 We can actually use any up vector we want, and simply project it onto this plane to get an up vector
 for the camera. I use the common convention of naming a “view up” (_vup_) vector. A couple of cross
 products, and we now have a complete orthonormal basis $(u,v,w)$ to describe our camera’s
 orientation.
 
-  ![Figure [cam-view-up]: Camera view up direction](raytracinginrust/images/fig-1.16-cam-view-up.jpg)
+  ![Figure [cam-view-up]: Camera view up direction](images/fig-1.16-cam-view-up.jpg)
 
 Remember that `vup`, `v`, and `w` are all in the same plane. Note that, like before when our fixed
 camera faced -Z, our arbitrary view camera faces -w. And keep in mind that we can -- but we don’t
@@ -2942,7 +2882,7 @@ We'll change back to the prior scene, and use the new viewpoint:
 
 to get:
 
-  ![Image 18: A distant view](raytracinginrust/images/img-1.18-view-distant.png class=pixel)
+  ![Image 18: A distant view](images/img-1.18-view-distant.png class=pixel)
 
 And we can change field of view:
 
@@ -2953,7 +2893,7 @@ And we can change field of view:
 
 to get:
 
-  ![Image 19: Zooming in](raytracinginrust/images/img-1.19-view-zoom.png class=pixel)
+  ![Image 19: Zooming in](images/img-1.19-view-zoom.png class=pixel)
 
 </div>
 
@@ -2991,7 +2931,7 @@ then lens, then aperture. Then we could figure out where to send the rays, and f
 it's computed (the image is projected upside down on the film). Graphics people, however, usually
 use a thin lens approximation:
 
-  ![Figure [cam-lens]: Camera lens model](raytracinginrust/images/fig-1.17-cam-lens.jpg)
+  ![Figure [cam-lens]: Camera lens model](images/fig-1.17-cam-lens.jpg)
 
 </div>
 
@@ -3001,7 +2941,7 @@ outside the camera, that would be unnecessary complexity. Instead, I usually sta
 lens, and send them toward the focus plane (`focus_dist` away from the lens), where everything on
 that plane is in perfect focus.
 
-  ![Figure [cam-film-plane]: Camera focus plane](raytracinginrust/images/fig-1.18-cam-film-plane.jpg)
+  ![Figure [cam-film-plane]: Camera focus plane](images/fig-1.18-cam-film-plane.jpg)
 
 </div>
 
@@ -3103,7 +3043,7 @@ Using a big aperture:
 
 We get:
 
-  ![Image 20: Spheres with depth-of-field](raytracinginrust/images/img-1.20-depth-of-field.png class=pixel)
+  ![Image 20: Spheres with depth-of-field](images/img-1.20-depth-of-field.png class=pixel)
 
 </div>
 
@@ -3216,7 +3156,7 @@ First let’s make the image on the cover of this book -- lots of random spheres
 <div class='together'>
 This gives:
 
-  ![Image 21: Final scene](raytracinginrust/images/img-1.21-book1-final.jpg)
+  ![Image 21: Final scene](images/img-1.21-book1-final.jpg)
 
 </div>
 
