@@ -1,5 +1,7 @@
 mod vec;
 mod ray;
+mod hit;
+mod sphere;
 
 use vec::{Vec3, Point3, Color};
 use ray::Ray;
