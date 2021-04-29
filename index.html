@@ -1112,184 +1112,91 @@ that stores a list of `Hit`s:
     }
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [hittable-list-initial]: <kbd>[hit.rs]</kbd> The hittable_list struct]
-</div>
-
-
-Some New C++ Features
-----------------------
-The `hittable_list` class code uses two C++ features that may trip you up if you're not normally a
-C++ programmer: `vector` and `shared_ptr`.
-
-`shared_ptr<type>` is a pointer to some allocated type, with reference-counting semantics.
-Every time you assign its value to another shared pointer (usually with a simple assignment), the
-reference count is incremented. As shared pointers go out of scope (like at the end of a block or
-function), the reference count is decremented. Once the count goes to zero, the object is deleted.
-
-<div class='together'>
-Typically, a shared pointer is first initialized with a newly-allocated object, something like this:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    shared_ptr<double> double_ptr = make_shared<double>(0.37);
-    shared_ptr<Vec3>   Vec3_ptr   = make_shared<Vec3>(1.414214, 2.718281, 1.618034);
-    shared_ptr<sphere> sphere_ptr = make_shared<sphere>(Point3(0,0,0), 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [shared-ptr]: An example allocation using shared_ptr]
-
-`make_shared<thing>(thing_constructor_params ..)` allocates a new instance of type `thing`, using
-the constructor parameters. It returns a `shared_ptr<thing>`.
-
-Since the type can be automatically deduced by the return type of `make_shared<type>(..)`, the
-above lines can be more simply expressed using C++'s `auto` type specifier:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto double_ptr = make_shared<double>(0.37);
-    auto Vec3_ptr   = make_shared<Vec3>(1.414214, 2.718281, 1.618034);
-    auto sphere_ptr = make_shared<sphere>(Point3(0,0,0), 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [shared-ptr-auto]: An example allocation using shared_ptr with auto type]
-
-</div>
-
-We'll use shared pointers in our code, because it allows multiple geometries to share a common
-instance (for example, a bunch of spheres that all use the same texture map material), and because
-it makes memory management automatic and easier to reason about.
-
-`std::shared_ptr` is included with the `<memory>` header.
-
-The second C++ feature you may be unfamiliar with is `std::vector`. This is a generic array-like
-collection of an arbitrary type. Above, we use a collection of pointers to `hittable`. `std::vector`
-automatically grows as more values are added: `objects.push_back(object)` adds a value to the end of
-the `std::vector` member variable `objects`.
-
-`std::vector` is included with the `<vector>` header.
-
-Finally, the `using` statements in listing [hittable-list-initial] tell the compiler that we'll be
-getting `shared_ptr` and `make_shared` from the `std` library, so we don't need to prefex these with
-`std::` every time we reference them.
-
-
-Common Constants and Utility Functions
----------------------------------------
-<div class='together'>
-We need some math constants that we conveniently define in their own header file. For now we only
-need infinity, but we will also throw our own definition of pi in there, which we will need later.
-There is no standard portable definition of pi, so we just define our own constant for it. We'll
-throw common useful constants and future utility functions in `rtweekend.h`, our general main header
-file.
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef RTWEEKEND_H
-    #define RTWEEKEND_H
-
-    #include <cmath>
-    #include <limits>
-    #include <memory>
-
-
-    // Usings
-
-    using std::shared_ptr;
-    using std::make_shared;
-    using std::sqrt;
-
-    // Constants
-
-    const double infinity = std::numeric_limits<double>::infinity();
-    const double pi = 3.1415926535897932385;
-
-    // Utility Functions
-
-    inline double degrees_to_radians(double degrees) {
-        return degrees * pi / 180.0;
-    }
-
-    // Common Headers
-
-    #include "ray.h"
-    #include "Vec3.h"
-
-    #endif
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [rtweekend-initial]: <kbd>[rtweekend.h]</kbd> The rtweekend.h common header]
+    [Listing [world-initial]: <kbd>[hit.rs]</kbd> The World struct]
 </div>
 
 <div class='together'>
 And the new main:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "rtweekend.h"
-
-    #include "Color.h"
-    #include "hittable_list.h"
-    #include "sphere.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-    #include <iostream>
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    Color ray_Color(const ray& r, const hittable& world) {
-        hit_record rec;
-        if (world.hit(r, 0, infinity, rec)) {
-            return 0.5 * (rec.normal + Color(1,1,1));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    mod vec;
+    mod ray;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    mod hit;
+    mod sphere;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+    use vec::{Vec3, Point3, Color};
+    use ray::Ray;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    use hit::{Hit, World};
+    use sphere::Sphere;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+    fn ray_color(r: &Ray, world: &World) -> Color {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        if let Some(rec) = world.hit(r, 0.0, f64::INFINITY) {
+            0.5 * (rec.normal + Color::new(1.0, 1.0, 1.0))
+        } else {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+            let unit_direction = r.direction().normalized();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
         }
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        Vec3 unit_direction = unit_vector(r.direction());
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto t = 0.5*(unit_direction.y() + 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     }
 
-    int main() {
-
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    fn main() -> () {
         // Image
-
-        const auto aspect_ratio = 16.0 / 9.0;
-        const int image_width = 400;
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-
+        const ASPECT_RATIO: f64 = 16.0 / 9.0;
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    
         // World
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        hittable_list world;
-        world.add(make_shared<sphere>(Point3(0,0,-1), 0.5));
-        world.add(make_shared<sphere>(Point3(0,-100.5,-1), 100));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
+        let mut world = World::new();
+        world.push(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
+        world.push(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
         // Camera
-
-        auto viewport_height = 2.0;
-        auto viewport_width = aspect_ratio * viewport_height;
-        auto focal_length = 1.0;
-
-        auto origin = Point3(0, 0, 0);
-        auto horizontal = Vec3(viewport_width, 0, 0);
-        auto vertical = Vec3(0, viewport_height, 0);
-        auto lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
-
-        // Render
-
-        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-                auto u = double(i) / (image_width-1);
-                auto v = double(j) / (image_height-1);
-                ray r(origin, lower_left_corner + u*horizontal + v*vertical);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                Color pixel_Color = ray_Color(r, world);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                write_Color(std::cout, pixel_Color);
+        let viewport_height = 2.0;
+        let viewport_width = ASPECT_RATIO * viewport_height;
+        let focal_length = 1.0;
+    
+        let origin = Point3::new(0.0, 0.0, 0.0);
+        let horizontal = Vec3::new(viewport_width, 0.0, 0.0);
+        let vertical = Vec3::new(0.0, viewport_height, 0.0);
+        let lower_left_corner = origin - horizontal / 2.0 - vertical / 2.0
+                              - Vec3::new(0.0, 0.0, focal_length);
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+                let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
+                let v = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
+    
+                let r = Ray::new(origin,
+                                 lower_left_corner + u * horizontal + v * vertical - origin);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                let pixel_color = ray_color(&r, &world);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+                println!("{}", pixel_color.format_color());
             }
         }
-
-        std::cerr << "\nDone.\n";
+    
+        eprintln!("Done.");
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-with-rtweekend-h]: <kbd>[main.cc]</kbd> The new main with hittables]
+    [Listing [main-with-hittables-h]: <kbd>[main.rs]</kbd> The new main with hittables]
 </div>
 
 <div class='together'>
@@ -1320,42 +1227,21 @@ that returns a canonical random number which by convention returns a random real
 $0 ≤ r < 1$. The “less than” before the 1 is important as we will sometimes take advantage of that.
 
 <div class='together'>
-A simple approach to this is to use the `rand()` function that can be found in `<cstdlib>`. This
-function returns a random integer in the range 0 and `RAND_MAX`. Hence we can get a real random
-number as desired with the following code snippet, added to `rtweekend.h`:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #include <cstdlib>
-    ..
-
-    inline double random_double() {
-        // Returns a random real in [0,1).
-        return rand() / (RAND_MAX + 1.0);
-    }
-
-    inline double random_double(double min, double max) {
-        // Returns a random real in [min,max).
-        return min + (max-min)*random_double();
-    }
+A simple approach to this is to use the `rand` crate. We need to add it to the dependencies of our
+`Cargo.toml`:
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    [package]
+    name = "raytracinginrust"
+    version = "0.1.0"
+    authors = ["danb <danb@hasi.it>"]
+    edition = "2018"
+    
+    # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+    
+    [dependencies]
+    rand = "*"
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-double]: <kbd>[rtweekend.h]</kbd> random_double() functions]
-</div>
-
-<div class='together'>
-C++ did not traditionally have a standard random number generator, but newer versions of C++ have
-addressed this issue with the `<random>` header (if imperfectly according to some experts).
-If you want to use this, you can obtain a random number with the conditions we need as follows:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #include <random>
-
-    inline double random_double() {
-        static std::uniform_real_distribution<double> distribution(0.0, 1.0);
-        static std::mt19937 generator;
-        return distribution(generator);
-    }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-double-alt]: <kbd>[rtweekend.h]</kbd> random_double(), alternate implemenation]
+    [Listing [rand-dependency]: <kbd>[Cargo.toml]</kbd> added rand crate dependency]
 </div>
 
 
