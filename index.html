@@ -1058,7 +1058,7 @@ calculation for us.
         Adding front-face tracking to hit_record]
 
 <div class='together'>
-And then we add the surface side determination to the struct implementation:
+And then we add the surface side determination to the trait implementation:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
@@ -1071,8 +1071,8 @@ And then we add the surface side determination to the struct implementation:
             p: r.at(root),
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
             normal: Vec3::new(0.0, 0.0,0.0),
-	    front_face: false
-	}
+            front_face: false
+        };
 
         let outward_normal = (rec.p - self.center) / self.radius;
         rec.set_face_normal(r, outward_normal);
@@ -1260,55 +1260,50 @@ Now's a good time to create a `Camera` struct to manage our virtual camera and t
 scene scampling. The following struct implements a simple camera using the axis-aligned camera from
 before:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef CAMERA_H
-    #define CAMERA_H
-
-    #include "rtweekend.h"
-
-    class camera {
-        public:
-            camera() {
-                auto aspect_ratio = 16.0 / 9.0;
-                auto viewport_height = 2.0;
-                auto viewport_width = aspect_ratio * viewport_height;
-                auto focal_length = 1.0;
-
-                origin = Point3(0, 0, 0);
-                horizontal = Vec3(viewport_width, 0.0, 0.0);
-                vertical = Vec3(0.0, viewport_height, 0.0);
-                lower_left_corner = origin - horizontal/2 - vertical/2 - Vec3(0, 0, focal_length);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    use super::vec::{Vec3, Point3};
+    use super::ray::Ray;
+    
+    struct Camera {
+        origin: Point3,
+        lower_left_corner: Point3,
+        horizontal: Vec3,
+        vertical: Vec3
+    }
+    
+    impl Camera {
+        pub fn new() -> Camera {
+            const ASPECT_RATIO: f64 = 16.0 / 9.0;
+            const VIEWPORT_HEIGHT: f64 = 2.0;
+            const VIEWPORT_WIDTH: f64 = ASPECT_RATIO * VIEWPORT_HEIGHT;
+            const FOCAL_LENGTH: f64 = 1.0;
+    
+            let orig = Point3::new(0.0, 0.0, 0.0);
+            let h = Vec3::new(VIEWPORT_WIDTH, 0.0, 0.0);
+            let v = Vec3::new(0.0, VIEWPORT_HEIGHT, 0.0);
+            let llc = orig - h / 2.0 - v / 2.0 - Vec3::new(0.0, 0.0, FOCAL_LENGTH);
+    
+            Camera {
+                origin: orig,
+                horizontal: h,
+                vertical: v,
+                lower_left_corner: llc
             }
-
-            ray get_ray(double u, double v) const {
-                return ray(origin, lower_left_corner + u*horizontal + v*vertical - origin);
-            }
-
-        private:
-            Point3 origin;
-            Point3 lower_left_corner;
-            Vec3 horizontal;
-            Vec3 vertical;
-    };
-    #endif
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [camera-initial]: <kbd>[camera.h]</kbd> The camera struct]
-</div>
-
-To handle the multi-sampled Color computation, we'll update the `write_Color()` function. Rather
-than adding in a fractional contribution each time we accumulate more light to the Color, just add
-the full Color each iteration, and then perform a single divide at the end (by the number of
-samples) when writing out the Color. In addition, we'll add a handy utility function to the
-`rtweekend.h` utility header: `clamp(x,min,max)`, which clamps the value `x` to the range [min,max]:
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    inline double clamp(double x, double min, double max) {
-        if (x < min) return min;
-        if (x > max) return max;
-        return x;
+        }
+    
+        pub fn get_ray(&self, u: f64, v: f64) -> Ray {
+            Ray::new(self.origin, self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin)
+        }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [clamp]: <kbd>[rtweekend.h]</kbd> The clamp() utility function]
+    [Listing [camera-initial]: <kbd>[camera.rs]</kbd> The camera struct]
+</div>
+
+To handle the multi-sampled Color computation, we'll update the `format_color()` function. Rather
+than adding in a fractional contribution each time we accumulate more light to the Color, just add
+the full Color each iteration, and then perform a single divide at the end (by the number of
+samples) when writing out the Color. In addition, we'll use `std::num::clamp`, which clamps the value
+to the range [min,max]:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
     void write_Color(std::ostream &out, Color pixel_Color, int samples_per_pixel) {
@@ -1333,59 +1328,67 @@ samples) when writing out the Color. In addition, we'll add a handy utility func
 <div class='together'>
 Main is also changed:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "camera.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    ..
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+
+    use camera::Camera;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
 
     ..
 
-    int main() {
-
+    fn main() -> () {
         // Image
-
-        const auto aspect_ratio = 16.0 / 9.0;
-        const int image_width = 400;
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        const int samples_per_pixel = 100;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
+        const ASPECT_RATIO: f64 = 16.0 / 9.0;
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        const SAMPLES_PER_PIXEL: u64 = 100;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
         // World
-
-        hittable_list world;
-        world.add(make_shared<sphere>(Point3(0,0,-1), 0.5));
-        world.add(make_shared<sphere>(Point3(0,-100.5,-1), 100));
-
+        let mut world = World::new();
+        world.push(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
+        world.push(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
+    
         // Camera
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        camera cam;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        // Render
-
-        std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                Color pixel_Color(0, 0, 0);
-                for (int s = 0; s < samples_per_pixel; ++s) {
-                    auto u = (i + random_double()) / (image_width-1);
-                    auto v = (j + random_double()) / (image_height-1);
-                    ray r = cam.get_ray(u, v);
-                    pixel_Color += ray_Color(r, world);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let cam = Camera::new();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    
+        let mut rng = rand::thread_rng();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for _ in 0..SAMPLES_PER_PIXEL {
+                    let random_u: f64 = rng.gen();
+                    let random_v: f64 = rng.gen();
+    
+                    let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                    let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
+    
+                    let r = cam.get_ray(u, v);
+                    pixel_color += ray_color(&r, &world);
                 }
-                write_Color(std::cout, pixel_Color, samples_per_pixel);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    
+                println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
             }
         }
-
-        std::cerr << "\nDone.\n";
+    
+        eprintln!("Done.");
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-multi-sample]: <kbd>[main.cc]</kbd> Rendering with multi-sampled pixels]
+    [Listing [main-multi-sample]: <kbd>[main.rs]</kbd> Rendering with multi-sampled pixels]
 </div>
 
 Zooming into the image that is produced, we can see the difference in edge pixels.
