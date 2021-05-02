@@ -1146,8 +1146,8 @@ And the new main:
         }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     }
-
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+
     fn main() -> () {
         // Image
         const ASPECT_RATIO: f64 = 16.0 / 9.0;
@@ -1305,25 +1305,16 @@ the full Color each iteration, and then perform a single divide at the end (by t
 samples) when writing out the Color. In addition, we'll use `std::num::clamp`, which clamps the value
 to the range [min,max]:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    void write_Color(std::ostream &out, Color pixel_Color, int samples_per_pixel) {
-        auto r = pixel_Color.x();
-        auto g = pixel_Color.y();
-        auto b = pixel_Color.z();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn format_color(self, samples_per_pixel: u64) -> String {
+        let ir = (256.0 * (self[0] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
+        let ig = (256.0 * (self[1] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
+        let ib = (256.0 * (self[2] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
 
-        // Divide the Color by the number of samples.
-        auto scale = 1.0 / samples_per_pixel;
-        r *= scale;
-        g *= scale;
-        b *= scale;
-
-        // Write the translated [0,255] value of each Color component.
-        out << static_cast<int>(256 * clamp(r, 0.0, 0.999)) << ' '
-            << static_cast<int>(256 * clamp(g, 0.0, 0.999)) << ' '
-            << static_cast<int>(256 * clamp(b, 0.0, 0.999)) << '\n';
+        format!("{} {} {}", ir, ig, ib)
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [write-Color-clamped]: <kbd>[Color.h]</kbd> The multi-sample write_Color() function]
+    [Listing [format-color-clamped]: <kbd>[vec.rs]</kbd> The multi-sample write_Color() function]
 
 <div class='together'>
 Main is also changed:
@@ -1449,52 +1440,61 @@ We need a way to pick a random point in a unit radius sphere. We’ll use what i
 algorithm: a rejection method. First, pick a random point in the unit cube where x, y, and z all
 range from -1 to +1. Reject this point and try again if the point is outside the sphere.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class Vec3 {
-      public:
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Vec3 {
         ..
-        inline static Vec3 random() {
-            return Vec3(random_double(), random_double(), random_double());
+
+        pub fn random(r: Range<f64>) -> Vec3 {
+            let mut rng = rand::thread_rng();
+            
+            Vec3 {
+                e: [rng.gen_range(r.clone()), rng.gen_range(r.clone()), rng.gen_range(r.clone())]
+            }
         }
 
-        inline static Vec3 random(double min, double max) {
-            return Vec3(random_double(min,max), random_double(min,max), random_double(min,max));
-        }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [vec-rand-util]: <kbd>[Vec3.h]</kbd> Vec3 random utility functions]
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Vec3 random_in_unit_sphere() {
-        while (true) {
-            auto p = Vec3::random(-1,1);
-            if (p.length_squared() >= 1) continue;
-            return p;
-        }
+        ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-in-unit-sphere]: <kbd>[Vec3.h]</kbd> The random_in_unit_sphere() function]
+    [Listing [vec-rand-util]: <kbd>[vec.rs]</kbd> Vec3 random utility function]
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Vec3 {
+        ..
+
+        pub fn random_in_unit_sphere() -> Vec3 {
+            loop {
+                let v = Vec3::random(-1.0..1.0);
+                if v.length() < 1.0 {
+                    return v;
+                }
+            }
+        }
+
+        ..
+    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [random-in-unit-sphere]: <kbd>[vec.rs]</kbd> The random_in_unit_sphere function]
 </div>
 
 <div class='together'>
-Then update the `ray_Color()` function to use the new random direction generator:
+Then update the `ray_color` function to use the new random direction generator:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Color ray_Color(const ray& r, const hittable& world) {
-        hit_record rec;
-
-        if (world.hit(r, 0, infinity, rec)) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            Point3 target = rec.p + rec.normal + random_in_unit_sphere();
-            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn ray_color(r: &Ray, world: &World) -> Color {
+        if let Some(rec) = world.hit(r, 0.0, f64::INFINITY) {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            let target = rec.p + rec.normal + Vec3::random_in_unit_sphere();
+            let r = Ray::new(rec.p, target - rec.p);
+            0.5 * ray_color(&r, world)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        } else {
+            let unit_direction = r.direction().normalized();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
         }
-
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-Color-random-unit]: <kbd>[main.cc]</kbd> ray_Color() using a random ray direction]
+    [Listing [ray-color-random-unit]: <kbd>[main.rs]</kbd> ray_color using a random ray direction]
 </div>
 
 
