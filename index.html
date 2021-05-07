@@ -601,7 +601,7 @@ for now because we’ll add antialiasing later):
 </div>
 
 <div class='together'>
-The `ray_Color(ray)` function linearly blends white and blue depending on the height of the $y$
+The `ray_color` function linearly blends white and blue depending on the height of the $y$
 coordinate _after_ scaling the ray direction to unit length (so $-1.0 < y < 1.0$). Because we're
 looking at the $y$ height after normalizing the vector, you'll notice a horizontal gradient to the
 Color in addition to the vertical gradient.
@@ -1070,7 +1070,7 @@ And then we add the surface side determination to the trait implementation:
             t: root,
             p: r.at(root),
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
-            normal: Vec3::new(0.0, 0.0,0.0),
+            normal: Vec3::new(0.0, 0.0, 0.0),
             front_face: false
         };
 
@@ -1292,7 +1292,8 @@ before:
         }
     
         pub fn get_ray(&self, u: f64, v: f64) -> Ray {
-            Ray::new(self.origin, self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin)
+            Ray::new(self.origin,
+                     self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin)
         }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1332,8 +1333,8 @@ Main is also changed:
         // Image
         const ASPECT_RATIO: f64 = 16.0 / 9.0;
         const IMAGE_WIDTH: u64 = 256;
-        const IMAGE_HEIGHT: u64 = ((256 as f64) / ASPECT_RATIO) as u64;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        const IMAGE_HEIGHT: u64 = ((IMAGE_WIDTH as f64) / ASPECT_RATIO) as u64;
         const SAMPLES_PER_PIXEL: u64 = 100;
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     
@@ -1501,74 +1502,81 @@ Then update the `ray_color` function to use the new random direction generator:
 Limiting the Number of Child Rays
 ----------------------------------
 <div class='together'>
-There's one potential problem lurking here. Notice that the `ray_Color` function is recursive. When
+There's one potential problem lurking here. Notice that the `ray_color` function is recursive. When
 will it stop recursing? When it fails to hit anything. In some cases, however, that may be a long
 time — long enough to blow the stack. To guard against that, let's limit the maximum recursion
 depth, returning no light contribution at the maximum depth:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    Color ray_Color(const ray& r, const hittable& world, int depth) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        hit_record rec;
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        // If we've exceeded the ray bounce limit, no more light is gathered.
-        if (depth <= 0)
-            return Color(0,0,0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        if (world.hit(r, 0, infinity, rec)) {
-            Point3 target = rec.p + rec.normal + random_in_unit_sphere();
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    fn ray_color(r: &Ray, world: &World, depth: u64) -> Color {
+        if depth <= 0 {
+            // If we've exceeded the ray bounce limit, no more light is gathered
+            return Color::new(0.0, 0.0, 0.0);
         }
-
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        if let Some(rec) = world.hit(r, 0.0, f64::INFINITY) {
+            let target = rec.p + rec.normal + Vec3::random_in_unit_sphere();
+            let r = Ray::new(rec.p, target - rec.p);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            0.5 * ray_color(&r, world, depth - 1)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        } else {
+            let unit_direction = r.direction().normalized();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+        }
     }
-
-    ..
-
-    int main() {
-
+    
+    fn main() -> () {
         // Image
-
-        const auto aspect_ratio = 16.0 / 9.0;
-        const int image_width = 400;
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-        const int samples_per_pixel = 100;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        const int max_depth = 50;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        ..
-
-        // Render
-
-        std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-                Color pixel_Color(0, 0, 0);
-                for (int s = 0; s < samples_per_pixel; ++s) {
-                    auto u = (i + random_double()) / (image_width-1);
-                    auto v = (j + random_double()) / (image_height-1);
-                    ray r = cam.get_ray(u, v);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                    pixel_Color += ray_Color(r, world, max_depth);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+        const ASPECT_RATIO: f64 = 16.0 / 9.0;
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = ((IMAGE_WIDTH as f64) / ASPECT_RATIO) as u64;
+        const SAMPLES_PER_PIXEL: u64 = 10;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        const MAX_DEPTH: u64 = 5;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        // World
+        let mut world = World::new();
+        world.push(Box::new(Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5)));
+        world.push(Box::new(Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0)));
+    
+        // Camera
+        let cam = Camera::new();
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        let mut rng = rand::thread_rng();
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for _ in 0..SAMPLES_PER_PIXEL {
+                    let random_u: f64 = rng.gen();
+                    let random_v: f64 = rng.gen();
+    
+                    let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                    let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
+    
+                    let r = cam.get_ray(u, v);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                    pixel_color += ray_color(&r, &world, MAX_DEPTH);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
                 }
-                write_Color(std::cout, pixel_Color, samples_per_pixel);
+    
+                println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
             }
         }
-
-        std::cerr << "\nDone.\n";
+    
+        eprintln!("Done.");
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-Color-depth]: <kbd>[main.cc]</kbd> ray_Color() with depth limiting]
+    [Listing [ray-color-depth]: <kbd>[main.rs]</kbd> ray_color with depth limiting]
 </div>
 
 <div class='together'>
@@ -1588,31 +1596,21 @@ fix that now. These spheres should look pretty light (in real life, a light grey
 this is that almost all image viewers assume that the image is “gamma corrected”, meaning the 0 to 1
 values have some transform before being stored as a byte. There are many good reasons for that, but
 for our purposes we just need to be aware of it. To a first approximation, we can use “gamma 2”
-which means raising the Color to the power $1/gamma$, or in our simple case ½, which is just
+which means raising the Color to the power $1/\gamma$, or in our simple case ½, which is just
 square-root:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    void write_Color(std::ostream &out, Color pixel_Color, int samples_per_pixel) {
-        auto r = pixel_Color.x();
-        auto g = pixel_Color.y();
-        auto b = pixel_Color.z();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn format_color(self, samples_per_pixel: u64) -> String {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let ir = (256.0 * (self[0] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
+        let ig = (256.0 * (self[1] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
+        let ib = (256.0 * (self[2] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
 
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        // Divide the Color by the number of samples and gamma-correct for gamma=2.0.
-        auto scale = 1.0 / samples_per_pixel;
-        r = sqrt(scale * r);
-        g = sqrt(scale * g);
-        b = sqrt(scale * b);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        // Write the translated [0,255] value of each Color component.
-        out << static_cast<int>(256 * clamp(r, 0.0, 0.999)) << ' '
-            << static_cast<int>(256 * clamp(g, 0.0, 0.999)) << ' '
-            << static_cast<int>(256 * clamp(b, 0.0, 0.999)) << '\n';
+        format!("{} {} {}", ir, ig, ib)
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [write-Color-gamma]: <kbd>[Color.h]</kbd> write_Color(), with gamma correction]
+    [Listing [format-color-gamma]: <kbd>[vec.rs]</kbd> format_color with gamma correction]
 
 </div>
 
@@ -1632,10 +1630,10 @@ There’s also a subtle bug in there. Some of the reflected rays hit the object 
 off of not at exactly $t=0$, but instead at $t=-0.0000001$ or $t=0.00000001$ or whatever floating
 point approximation the sphere intersector gives us. So we need to ignore hits very near zero:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    if (world.hit(r, 0.001, infinity, rec)) {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+		if let Some(rec) = world.hit(r, 0.001, f64::INFINITY) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [reflect-tolerance]: <kbd>[main.cc]</kbd> Calculating reflected ray origins with tolerance]
+    [Listing [reflect-tolerance]: <kbd>[main.rs]</kbd> Calculating reflected ray origins with tolerance]
 
 This gets rid of the shadow acne problem. Yes it is really called that.
 </div>
@@ -1656,47 +1654,12 @@ distribution is more uniform. This is achieved by picking random points on the s
 sphere, offset along the surface normal. Picking random points on the unit sphere can be achieved by
 picking random points _in_ the unit sphere, and then normalizing those.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    inline Vec3 random_in_unit_sphere() {
-        ..
-    }
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    Vec3 random_unit_vector() {
-        return unit_vector(random_in_unit_sphere());
-    }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-unit-vector]: <kbd>[Vec3.h]</kbd> The random_unit_vector() function]
-
-  ![Figure [rand-unitvec]: Generating a random unit vector](images/fig-1.10-rand-unitvec.png)
-
-</div>
-
 <div class='together'>
-This `random_unit_vector()` is a drop-in replacement for the existing `random_in_unit_sphere()`
-function.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Color ray_Color(const ray& r, const hittable& world, int depth) {
-        hit_record rec;
-
-        // If we've exceeded the ray bounce limit, no more light is gathered.
-        if (depth <= 0)
-            return Color(0,0,0);
-
-        if (world.hit(r, 0.001, infinity, rec)) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            Point3 target = rec.p + rec.normal + random_unit_vector();
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
-        }
-
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
-    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let target = rec.p + rec.normal + Vec3::random_in_unit_sphere().normalized();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-Color-unit-sphere]: <kbd>[main.cc]</kbd> ray_Color() with replacement diffuse]
+    [Listing [ray-color-unit-sphere]: <kbd>[main.rs]</kbd> ray_color with replacement diffuse]
 </div>
 
 <div class='together'>
@@ -1742,43 +1705,34 @@ A more intuitive approach is to have a uniform scatter direction for all angles 
 point, with no dependence on the angle from the normal. Many of the first raytracing papers used
 this diffuse method (before adopting Lambertian diffuse).
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Vec3 random_in_hemisphere(const Vec3& normal) {
-        Vec3 in_unit_sphere = random_in_unit_sphere();
-        if (dot(in_unit_sphere, normal) > 0.0) // In the same hemisphere as the normal
-            return in_unit_sphere;
-        else
-            return -in_unit_sphere;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Vec3 {
+        ..
+
+        pub fn random_in_hemisphere(normal: Vec3) -> Vec3 {
+            let in_unit_sphere = Self::random_in_unit_sphere();
+            if in_unit_sphere.dot(normal) > 0.0 {
+                // In the same hemisphere as the normal
+                in_unit_sphere
+            } else {
+                (-1.0) * in_unit_sphere
+            }
+        }
+
+        ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [random-in-hemisphere]: <kbd>[Vec3.h]</kbd> The random_in_hemisphere(normal) function]
+    [Listing [random-in-hemisphere]: <kbd>[vec.rs]</kbd> The random_in_hemisphere function]
 
 </div>
 
 <div class='together'>
-Plugging the new formula into the `ray_Color()` function:
+Plugging the new formula into the `ray_color` function:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Color ray_Color(const ray& r, const hittable& world, int depth) {
-        hit_record rec;
-
-        // If we've exceeded the ray bounce limit, no more light is gathered.
-        if (depth <= 0)
-            return Color(0,0,0);
-
-        if (world.hit(r, 0.001, infinity, rec)) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            Point3 target = rec.p + random_in_hemisphere(rec.normal);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-            return 0.5 * ray_Color(ray(rec.p, target - rec.p), world, depth-1);
-        }
-
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
-    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let target = rec.p + Vec3::random_in_hemisphere(rec.normal);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-Color-hemisphere]: <kbd>[main.cc]</kbd> ray_Color() with hemispherical scattering]
+    [Listing [ray-color-hemisphere]: <kbd>[main.rs]</kbd> ray_color with hemispherical scattering]
 
 Gives us the following image:
 
@@ -1813,24 +1767,12 @@ two things:
 <div class='together'>
 This suggests the trait:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    #ifndef MATERIAL_H
-    #define MATERIAL_H
-
-    #include "rtweekend.h"
-
-    struct hit_record;
-
-    class material {
-        public:
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const = 0;
-    };
-
-    #endif
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub trait Scatter {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)>;
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [material-initial]: <kbd>[material.h]</kbd> The material trait]
+    [Listing [material-initial]: <kbd>[material.rs]</kbd> The scatter trait]
 </div>
 
 
@@ -1842,30 +1784,18 @@ You can use arguments instead; it’s a matter of taste. Hittables and materials
 other so there is some circularity of the references. In C++ you just need to alert the compiler
 that the pointer is to a class, which the “class material” in the hittable class below does:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "rtweekend.h"
-
-    class material;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-    struct hit_record {
-        Point3 p;
-        Vec3 normal;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        shared_ptr<material> mat_ptr;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        double t;
-        bool front_face;
-
-        inline void set_face_normal(const ray& r, const Vec3& outward_normal) {
-            front_face = dot(r.direction(), outward_normal) < 0;
-            normal = front_face ? outward_normal :-outward_normal;
-        }
-    };
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct HitRecord {
+        pub p: Point3,
+        pub normal: Vec3,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        pub mat: Rc<dyn Scatter>,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        pub t: f64,
+        pub front_face: bool
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [hit-with-material]: <kbd>[hittable.h]</kbd> Hit record with added material pointer]
+    [Listing [hit-with-material]: <kbd>[hit.rs]</kbd> Hit record with added material]
 </div>
 
 What we have set up here is that material will tell us how rays interact with the surface.
@@ -1879,41 +1809,48 @@ functions of the material pointer to find out what ray, if any, is scattered.
 To achieve this, we must have a reference to the material for our sphere struct to returned
 within `hit_record`. See the highlighted lines below:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class sphere : public hittable {
-        public:
-            sphere() {}
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            sphere(Point3 cen, double r, shared_ptr<material> m)
-                : center(cen), radius(r), mat_ptr(m) {};
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-            virtual bool hit(
-                const ray& r, double t_min, double t_max, hit_record& rec) const override;
-
-        public:
-            Point3 center;
-            double radius;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            shared_ptr<material> mat_ptr;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    };
-
-    bool sphere::hit(const ray& r, double t_min, double t_max, hit_record& rec) const {
-        ..
-
-        rec.t = root;
-        rec.p = r.at(rec.t);
-        Vec3 outward_normal = (rec.p - center) / radius;
-        rec.set_face_normal(r, outward_normal);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        rec.mat_ptr = mat_ptr;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        return true;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Sphere {
+        center: Point3,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        radius: f64,
+        mat: Rc<dyn Scatter>
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    }
+    
+    impl Sphere {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        pub fn new(cen: Point3, r: f64, m: Rc<dyn Scatter>) -> Sphere {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+            Sphere {
+                center: cen,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                radius: r,
+                mat: m
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+            }
+        }
+    }
+    
+    impl Hit for Sphere {
+        fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+            ..
+    
+            let mut rec = HitRecord {
+                t: root,
+                p: r.at(root),
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                mat: self.mat.clone(),
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+                normal: Vec3::new(0.0, 0.0, 0.0),
+                front_face: false
+            };
+    
+            ..
+        }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [sphere-material]: <kbd>[sphere.h]</kbd> Ray-sphere intersection with added material information]
+    [Listing [sphere-material]: <kbd>[sphere.rs]</kbd> Ray-sphere intersection with added material information]
 </div>
 
 
@@ -1924,25 +1861,29 @@ For the Lambertian (diffuse) case we already have, it can either scatter always 
 reflectance $R$, or it can scatter with no attenuation but absorb the fraction $1-R$ of the rays, or
 it could be a mixture of those strategies. For Lambertian materials we get this simple class:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class lambertian : public material {
-        public:
-            lambertian(const Color& a) : albedo(a) {}
-
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                auto scatter_direction = rec.normal + random_unit_vector();
-                scattered = ray(rec.p, scatter_direction);
-                attenuation = albedo;
-                return true;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Lambertian {
+        albedo: Color
+    }
+    
+    impl Lambertian {
+        pub fn new(a: Color) -> Lambertian {
+            Lambertian {
+                albedo: a
             }
-
-        public:
-            Color albedo;
-    };
+        }
+    }
+    
+    impl Scatter for Lambertian {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let scatter_direction = rec.normal + Vec3::random_in_unit_sphere().normalized();
+            let scattered = Ray::new(rec.p, scatter_direction);
+    
+            Some((self.albedo, scattered))
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [lambertian-initial]: <kbd>[material.h]</kbd> The lambertian material struct]
+    [Listing [lambertian-initial]: <kbd>[material.rs]</kbd> The lambertian material struct]
 </div>
 
 Note we could just as well only scatter with some probability $p$ and have attenuation be
@@ -1954,47 +1895,37 @@ result in a zero scatter direction vector. This leads to bad scenarios later on 
 NaNs), so we need to intercept the condition before we pass it on.
 
 <div class='together'>
-In service of this, we'll create a new vector method -- `Vec3::near_zero()` -- that returns true if
+In service of this, we'll create a new vector function -- `near_zero` -- that returns true if
 the vector is very close to zero in all dimensions.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class Vec3 {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Vec3 {
         ..
-        bool near_zero() const {
-            // Return true if the vector is close to zero in all dimensions.
-            const auto s = 1e-8;
-            return (fabs(e[0]) < s) && (fabs(e[1]) < s) && (fabs(e[2]) < s);
+
+        pub fn near_zero(self) -> bool {
+            const EPS: f64 = 1.0e-8;
+            self[0].abs() < EPS && self[1].abs() < EPS && self[2].abs() < EPS
         }
+
         ..
-    };
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [Vec3-near-zero]: <kbd>[Vec3.h]</kbd> The Vec3::near_zero() method]
+    [Listing [vec3-near-zero]: <kbd>[vec.rs]</kbd> The near_zero method]
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class lambertian : public material {
-        public:
-            lambertian(const Color& a) : albedo(a) {}
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+        let mut scatter_direction = rec.normal + Vec3::random_in_unit_sphere().normalized();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        if scatter_direction.near_zero() {
+            // Catch degenerate scatter direction
+            scatter_direction = rec.normal;
+        }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
 
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                auto scatter_direction = rec.normal + random_unit_vector();
+        let scattered = Ray::new(rec.p, scatter_direction);
 
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                // Catch degenerate scatter direction
-                if (scatter_direction.near_zero())
-                    scatter_direction = rec.normal;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-                scattered = ray(rec.p, scatter_direction);
-                attenuation = albedo;
-                return true;
-            }
-
-        public:
-            Color albedo;
-    };
+        Some((self.albedo, scattered))
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [lambertian-catch-zero]: <kbd>[material.h]</kbd> Lambertian scatter, bullet-proof]
 </div>
@@ -2015,136 +1946,150 @@ The reflected ray direction in red is just $\mathbf{v} + 2\mathbf{b}$. In our de
 is a unit vector, but $\mathbf{v}$ may not be. The length of $\mathbf{b}$ should be $\mathbf{v}
 \cdot \mathbf{n}$. Because $\mathbf{v}$ points in, we will need a minus sign, yielding:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Vec3 reflect(const Vec3& v, const Vec3& n) {
-        return v - 2*dot(v,n)*n;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn reflect(self, n: Vec3) -> Vec3 {
+        self - 2.0 * self.dot(n) * n
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [Vec3-reflect]: <kbd>[Vec3.h]</kbd> Vec3 reflection function]
+    [Listing [Vec3-reflect]: <kbd>[vec.rs]</kbd> Vec3 reflection function]
 </div>
 
 <div class='together'>
 The metal material just reflects rays using that formula:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class metal : public material {
-        public:
-            metal(const Color& a) : albedo(a) {}
-
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                Vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
-                scattered = ray(rec.p, reflected);
-                attenuation = albedo;
-                return (dot(scattered.direction(), rec.normal) > 0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Metal {
+        albedo: Color
+    }
+    
+    impl Metal {
+        pub fn new(a: Color) -> Metal {
+            Metal {
+                albedo: a
             }
-
-        public:
-            Color albedo;
-    };
+        }
+    }
+    
+    impl Scatter for Metal {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let reflected = r_in.direction().reflect(rec.normal).normalized();
+            let scattered = Ray::new(rec.p, reflected);
+    
+            if scattered.direction().dot(rec.normal) > 0.0 {
+                Some((self.albedo, scattered))
+            } else {
+                None
+            }
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [metal-material]: <kbd>[material.h]</kbd> Metal material with reflectance function]
+    [Listing [metal-material]: <kbd>[material.rs]</kbd> Metal material with reflectance function]
 </div>
 
 <div class='together'>
-We need to modify the `ray_Color()` function to use this:
+We need to modify the `ray_color` function to use this:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Color ray_Color(const ray& r, const hittable& world, int depth) {
-        hit_record rec;
-
-        // If we've exceeded the ray bounce limit, no more light is gathered.
-        if (depth <= 0)
-            return Color(0,0,0);
-
-        if (world.hit(r, 0.001, infinity, rec)) {
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            ray scattered;
-            Color attenuation;
-            if (rec.mat_ptr->scatter(r, rec, attenuation, scattered))
-                return attenuation * ray_Color(scattered, world, depth-1);
-            return Color(0,0,0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn ray_color(r: &Ray, world: &World, depth: u64) -> Color {
+        if depth <= 0 {
+            // If we've exceeded the ray bounce limit, no more light is gathered
+            return Color::new(0.0, 0.0, 0.0);
         }
-
-        Vec3 unit_direction = unit_vector(r.direction());
-        auto t = 0.5*(unit_direction.y() + 1.0);
-        return (1.0-t)*Color(1.0, 1.0, 1.0) + t*Color(0.5, 0.7, 1.0);
+    
+        if let Some(rec) = world.hit(r, 0.001, f64::INFINITY) {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            if let Some((attenuation, scattered)) = rec.mat.scatter(r, &rec) {
+                attenuation * ray_color(&scattered, world, depth - 1)
+            } else {
+                Color::new(0.0, 0.0, 0.0)
+            }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        } else {
+            let unit_direction = r.direction().normalized();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0)
+        }
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [ray-Color-scatter]: <kbd>[main.cc]</kbd> Ray Color with scattered reflectance]
+    [Listing [ray-color-scatter]: <kbd>[main.rs]</kbd> Ray color with scattered reflectance]
 </div>
 
+Note that you need to implement another trait to make this possible.
 
 A Scene with Metal Spheres
 ---------------------------
 <div class='together'>
 Now let’s add some metal spheres to our scene:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     ..
 
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    #include "material.h"
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    use material::{Lambertian, Metal};
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
 
     ..
 
-    int main() {
-
+    fn main() -> () {
         // Image
-
-        const auto aspect_ratio = 16.0 / 9.0;
-        const int image_width = 400;
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-        const int samples_per_pixel = 100;
-        const int max_depth = 50;
-
+        const ASPECT_RATIO: f64 = 16.0 / 9.0;
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = ((IMAGE_WIDTH as f64) / ASPECT_RATIO) as u64;
+        const SAMPLES_PER_PIXEL: u64 = 300;
+        const MAX_DEPTH: u64 = 50;
+    
         // World
-
-        hittable_list world;
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
-        auto material_center = make_shared<lambertian>(Color(0.7, 0.3, 0.3));
-        auto material_left   = make_shared<metal>(Color(0.8, 0.8, 0.8));
-        auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2));
-
-        world.add(make_shared<sphere>(Point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-        world.add(make_shared<sphere>(Point3( 0.0,    0.0, -1.0),   0.5, material_center));
-        world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),   0.5, material_left));
-        world.add(make_shared<sphere>(Point3( 1.0,    0.0, -1.0),   0.5, material_right));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
+        let mut world = World::new();
+    
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+        let mat_center = Rc::new(Lambertian::new(Color::new(0.7, 0.3, 0.3)));
+        let mat_left = Rc::new(Metal::new(Color::new(0.8, 0.8, 0.8)));
+        let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2)));
+    
+        let sphere_ground = Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, mat_ground);
+        let sphere_center = Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5, mat_center);
+        let sphere_left = Sphere::new(Point3::new(-1.0, 0.0, -1.0), 0.5, mat_left);
+        let sphere_right = Sphere::new(Point3::new(1.0, 0.0, -1.0), 0.5, mat_right);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        world.push(Box::new(sphere_ground));
+        world.push(Box::new(sphere_center));
+        world.push(Box::new(sphere_left));
+        world.push(Box::new(sphere_right));
+    
         // Camera
-
-        camera cam;
-
-        // Render
-
-        std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-            for (int i = 0; i < image_width; ++i) {
-                Color pixel_Color(0, 0, 0);
-                for (int s = 0; s < samples_per_pixel; ++s) {
-                    auto u = (i + random_double()) / (image_width-1);
-                    auto v = (j + random_double()) / (image_height-1);
-                    ray r = cam.get_ray(u, v);
-                    pixel_Color += ray_Color(r, world, max_depth);
+        let cam = Camera::new();
+    
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+    
+        let mut rng = rand::thread_rng();
+        for j in 0..IMAGE_HEIGHT {
+            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    
+            for i in 0..IMAGE_WIDTH {
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for _ in 0..SAMPLES_PER_PIXEL {
+                    let random_u: f64 = rng.gen();
+                    let random_v: f64 = rng.gen();
+    
+                    let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                    let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
+    
+                    let r = cam.get_ray(u, v);
+                    pixel_color += ray_color(&r, &world, MAX_DEPTH);
                 }
-                write_Color(std::cout, pixel_Color, samples_per_pixel);
+    
+                println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
             }
         }
-
-        std::cerr << "\nDone.\n";
+    
+        eprintln!("Done.");
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [scene-with-metal]: <kbd>[main.cc]</kbd> Scene with metal spheres]
+    [Listing [scene-with-metal]: <kbd>[main.rs]</kbd> Scene with metal spheres]
 </div>
 
 <div class='together'>

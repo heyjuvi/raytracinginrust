@@ -35,6 +35,16 @@ impl Vec3 {
         }
     }
 
+    pub fn random_in_hemisphere(normal: Vec3) -> Vec3 {
+        let in_unit_sphere = Self::random_in_unit_sphere();
+        if in_unit_sphere.dot(normal) > 0.0 {
+            // In the same hemisphere as the normal
+            in_unit_sphere
+        } else {
+            (-1.0) * in_unit_sphere
+        }
+    }
+
     pub fn x(self) -> f64 {
         self[0]
     }
@@ -65,14 +75,23 @@ impl Vec3 {
         }
     }
 
+    pub fn reflect(self, n: Vec3) -> Vec3 {
+        self - 2.0 * self.dot(n) * n
+    }
+
     pub fn normalized(self) -> Vec3 {
         self / self.length()
     }
 
+    pub fn near_zero(self) -> bool {
+        const EPS: f64 = 1.0e-8;
+        self[0].abs() < EPS && self[1].abs() < EPS && self[2].abs() < EPS
+    }
+
     pub fn format_color(self, samples_per_pixel: u64) -> String {
-        let ir = (256.0 * (self[0] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
-        let ig = (256.0 * (self[1] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
-        let ib = (256.0 * (self[2] / (samples_per_pixel as f64)).clamp(0.0, 0.999)) as u64;
+        let ir = (256.0 * (self[0] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
+        let ig = (256.0 * (self[1] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
+        let ib = (256.0 * (self[2] / (samples_per_pixel as f64)).sqrt().clamp(0.0, 0.999)) as u64;
 
         format!("{} {} {}", ir, ig, ib)
     }
@@ -148,6 +167,24 @@ impl MulAssign<f64> for Vec3 {
     fn mul_assign(&mut self, other: f64) -> () {
         *self = Vec3 {
             e: [self[0] * other, self[1] * other, self[2] * other]
+        };
+    }
+}
+
+impl Mul<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, other: Vec3) -> Vec3 {
+        Vec3 {
+            e: [self[0] * other[0], self[1] * other[1], self[2] * other[2]]
+        }
+    }
+}
+
+impl MulAssign<Vec3> for Vec3 {
+    fn mul_assign(&mut self, other: Vec3) -> () {
+        *self = Vec3 {
+            e: [self[0] * other[0], self[1] * other[1], self[2] * other[2]]
         };
     }
 }
