@@ -1631,7 +1631,7 @@ off of not at exactly $t=0$, but instead at $t=-0.0000001$ or $t=0.00000001$ or 
 point approximation the sphere intersector gives us. So we need to ignore hits very near zero:
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-		if let Some(rec) = world.hit(r, 0.001, f64::INFINITY) {
+    if let Some(rec) = world.hit(r, 0.001, f64::INFINITY) {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [reflect-tolerance]: <kbd>[main.rs]</kbd> Calculating reflected ray origins with tolerance]
 
@@ -2116,52 +2116,63 @@ parameter that is just the radius of the sphere (so zero is no perturbation). Th
 big spheres or grazing rays, we may scatter below the surface. We can just have the surface
 absorb those.
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class metal : public material {
-        public:
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            metal(const Color& a, double f) : albedo(a), fuzz(f < 1 ? f : 1) {}
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                Vec3 reflected = reflect(unit_vector(r_in.direction()), rec.normal);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                scattered = ray(rec.p, reflected + fuzz*random_in_unit_sphere());
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                attenuation = albedo;
-                return (dot(scattered.direction(), rec.normal) > 0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Metal {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        albedo: Color,
+        fuzz: f64
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    }
+    
+    impl Metal {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        pub fn new(a: Color, f: f64) -> Metal {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+            Metal {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                albedo: a,
+                fuzz: f
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
             }
-
-        public:
-            Color albedo;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-            double fuzz;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    };
+        }
+    }
+    
+    impl Scatter for Metal {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let reflected = r_in.direction().reflect(rec.normal).normalized();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            let scattered = Ray::new(rec.p, reflected + self.fuzz * Vec3::random_in_unit_sphere());
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+            if scattered.direction().dot(rec.normal) > 0.0 {
+                Some((self.albedo, scattered))
+            } else {
+                None
+            }
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [metal-fuzz]: <kbd>[material.h]</kbd> Metal material fuzziness]
+    [Listing [metal-fuzz]: <kbd>[material.rs]</kbd> Metal material fuzziness]
 
 </div>
 
 We can try that out by adding fuzziness 0.3 and 1.0 to the metals:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    int main() {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn main() -> () {
         ..
-        // World
 
-        auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
-        auto material_center = make_shared<lambertian>(Color(0.7, 0.3, 0.3));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto material_left   = make_shared<metal>(Color(0.8, 0.8, 0.8), 0.3);
-        auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 1.0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+        let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+        let mat_center = Rc::new(Lambertian::new(Color::new(0.7, 0.3, 0.3)));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let mat_left = Rc::new(Metal::new(Color::new(0.8, 0.8, 0.8), 0.3));
+        let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+
         ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [metal-fuzz-spheres]: <kbd>[main.cc]</kbd> Metal spheres with fuzziness]
+    [Listing [metal-fuzz-spheres]: <kbd>[main.rs]</kbd> Metal spheres with fuzziness]
 
   ![Image 12: Fuzzed metal](images/img-1.12-metal-fuzz.png class=pixel)
 
@@ -2242,58 +2253,65 @@ We can now rewrite $\mathbf{R'}_{\bot}$ in terms of known quantities:
 
 When we combine them back together, we can write a function to calculate $\mathbf{R'}$:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    Vec3 refract(const Vec3& uv, const Vec3& n, double etai_over_etat) {
-        auto cos_theta = fmin(dot(-uv, n), 1.0);
-        Vec3 r_out_perp =  etai_over_etat * (uv + cos_theta*n);
-        Vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;
-        return r_out_perp + r_out_parallel;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub fn refract(self, n: Vec3, etai_over_etat: f64) -> Vec3 {
+        let cos_theta = ((-1.0) * self).dot(n).min(1.0);
+        let r_out_perp = etai_over_etat * (self + cos_theta * n);
+        let r_out_parallel = -(1.0 - r_out_perp.length().powi(2)).abs().sqrt() * n;
+        r_out_perp + r_out_parallel
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [refract]: <kbd>[Vec3.h]</kbd> Refraction function]
+    [Listing [refract]: <kbd>[vec.rs]</kbd> Refraction function]
 </div>
 
 <div class='together'>
 And the dielectric material that always refracts is:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class dielectric : public material {
-        public:
-            dielectric(double index_of_refraction) : ir(index_of_refraction) {}
-
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                attenuation = Color(1.0, 1.0, 1.0);
-                double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
-
-                Vec3 unit_direction = unit_vector(r_in.direction());
-                Vec3 refracted = refract(unit_direction, rec.normal, refraction_ratio);
-
-                scattered = ray(rec.p, refracted);
-                return true;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Dielectric {
+        ir: f64
+    }
+    
+    impl Dielectric {
+        pub fn new(index_of_refraction: f64) -> Dielectric {
+            Dielectric {
+                ir: index_of_refraction
             }
-
-        public:
-            double ir; // Index of Refraction
-    };
+        }
+    }
+    
+    impl Scatter for Dielectric {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let refraction_ratio = if rec.front_face {
+                1.0 / self.ir
+            } else {
+                self.ir
+            };
+    
+            let unit_direction = r_in.direction().normalized();
+            let refracted = unit_direction.refract(rec.normal, refraction_ratio);
+            let scattered = Ray::new(rec.p, refracted);
+    
+            Some((Color::new(1.0, 1.0, 1.0), scattered))
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [dielectric]: <kbd>[material.h]</kbd> Dielectric material class that always refracts]
+    [Listing [dielectric]: <kbd>[material.rs]</kbd> Dielectric material class that always refracts]
 
 </div>
 
 <div class='together'>
 Now we'll update the scene to change the left and center spheres to glass:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    auto material_center = make_shared<dielectric>(1.5);
-    auto material_left   = make_shared<dielectric>(1.5);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    let mat_center = Rc::new(Dielectric::new(1.5));
+    let mat_left = Rc::new(Dielectric::new(1.5));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [two-glass]: <kbd>[main.cc]</kbd> Changing left and center spheres to glass]
+    [Listing [two-glass]: <kbd>[main.rs]</kbd> Changing left and center spheres to glass]
 
 </div>
 
@@ -2306,8 +2324,9 @@ This gives us the following result:
 Total Internal Reflection
 --------------------------
 That definitely doesn't look right. One troublesome practical issue is that when the ray is in the
-material with the higher refractive index, there is no real solution to Snell’s law, and thus there
-is no refraction possible. If we refer back to Snell's law and the derivation of $\sin\theta'$:
+material with the higher refractive index, there is not always be a solution to Snell’s law within the
+real numbers, and thus there is no refraction possible. If we refer back to Snell's law and the
+derivation of $\sin\theta'$:
 
   $$ \sin\theta' = \frac{\eta}{\eta'} \cdot \sin\theta $$
 
@@ -2323,8 +2342,8 @@ The value of $\sin\theta'$ cannot be greater than 1. So, if,
 the equality between the two sides of the equation is broken, and a solution cannot exist. If a
 solution does not exist, the glass cannot refract, and therefore must reflect the ray:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    if (refraction_ratio * sin_theta > 1.0) {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    if refraction_ratio * sin_theta > 1.0 {
         // Must Reflect
         ..
     } else {
@@ -2332,7 +2351,7 @@ solution does not exist, the glass cannot refract, and therefore must reflect th
         ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [dielectric]: <kbd>[material.h]</kbd> Determining if the ray can refract]
+    [Listing [dielectric]: <kbd>[material.rs]</kbd> Determining if the ray can refract]
 
 </div>
 
@@ -2349,11 +2368,11 @@ and
 
   $$ \cos\theta = \mathbf{R} \cdot \mathbf{n} $$
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
-    double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let cos_theta = ((-1.0) * unit_direction).dot(rec.normal).min(1.0);
+    let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
 
-    if (refraction_ratio * sin_theta > 1.0) {
+    if refraction_ratio * sin_theta > 1.0 {
         // Must Reflect
         ..
     } else {
@@ -2361,60 +2380,55 @@ and
         ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [dielectric]: <kbd>[material.h]</kbd> Determining if the ray can refract]
+    [Listing [dielectric]: <kbd>[material.rs]</kbd> Determining if the ray can refract]
 
 </div>
 
 <div class='together'>
 And the dielectric material that always refracts (when possible) is:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class dielectric : public material {
-        public:
-            dielectric(double index_of_refraction) : ir(index_of_refraction) {}
-
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                attenuation = Color(1.0, 1.0, 1.0);
-                double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
-
-                Vec3 unit_direction = unit_vector(r_in.direction());
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
-                double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
-
-                bool cannot_refract = refraction_ratio * sin_theta > 1.0;
-                Vec3 direction;
-
-                if (cannot_refract)
-                    direction = reflect(unit_direction, rec.normal);
-                else
-                    direction = refract(unit_direction, rec.normal, refraction_ratio);
-
-                scattered = ray(rec.p, direction);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                return true;
-            }
-
-        public:
-            double ir; // Index of Refraction
-    };
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Scatter for Dielectric {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let refraction_ratio = if rec.front_face {
+                1.0 / self.ir
+            } else {
+                self.ir
+            };
+    
+            let unit_direction = r_in.direction().normalized();
+    
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            let cos_theta = ((-1.0) * unit_direction).dot(rec.normal).min(1.0);
+            let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
+    
+            let direction = if refraction_ratio * sin_theta > 1.0 {
+                unit_direction.reflect(rec.normal)
+            } else {
+                unit_direction.refract(rec.normal, refraction_ratio)
+            };
+    
+            let scattered = Ray::new(rec.p, direction);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+            Some((Color::new(1.0, 1.0, 1.0), scattered))
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [dielectric]: <kbd>[material.h]</kbd> Dielectric material struct with reflection]
+    [Listing [dielectric]: <kbd>[material.rs]</kbd> Dielectric material struct with reflection]
 </div>
 
 <div class='together'>
 Attenuation is always 1 -- the glass surface absorbs nothing. If we try that out with these
 parameters:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    auto material_ground = make_shared<lambertian>(Color(0.8, 0.8, 0.0));
-    auto material_center = make_shared<lambertian>(Color(0.1, 0.2, 0.5));
-    auto material_left   = make_shared<dielectric>(1.5);
-    auto material_right  = make_shared<metal>(Color(0.8, 0.6, 0.2), 0.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let mat_center = Rc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
+    let mat_left = Rc::new(Dielectric::new(1.5));
+    let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [scene-dielectric]: <kbd>[main.cc]</kbd> Scene with dielectric and shiny sphere]
+    [Listing [scene-dielectric]: <kbd>[main.rs]</kbd> Scene with dielectric and shiny sphere]
 
 We get:
 
@@ -2432,50 +2446,51 @@ becomes a mirror. There is a big ugly equation for that, but almost everybody us
 surprisingly accurate polynomial approximation by Christophe Schlick. This yields our full glass
 material:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    class dielectric : public material {
-        public:
-            dielectric(double index_of_refraction) : ir(index_of_refraction) {}
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    impl Dielectric {
+        ..
+    
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
+            // Use Schlick's approximation for reflectance
+            let r0 = ((1.0 - ref_idx) / (1.0 + ref_idx)).powi(2);
+            r0 * (1.0 - r0) * (1.0 - cosine).powi(5)
+        }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    }
 
-            virtual bool scatter(
-                const ray& r_in, const hit_record& rec, Color& attenuation, ray& scattered
-            ) const override {
-                attenuation = Color(1.0, 1.0, 1.0);
-                double refraction_ratio = rec.front_face ? (1.0/ir) : ir;
-
-                Vec3 unit_direction = unit_vector(r_in.direction());
-                double cos_theta = fmin(dot(-unit_direction, rec.normal), 1.0);
-                double sin_theta = sqrt(1.0 - cos_theta*cos_theta);
-
-                bool cannot_refract = refraction_ratio * sin_theta > 1.0;
-                Vec3 direction;
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-                if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_double())
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-                    direction = reflect(unit_direction, rec.normal);
-                else
-                    direction = refract(unit_direction, rec.normal, refraction_ratio);
-
-                scattered = ray(rec.p, direction);
-                return true;
-            }
-
-        public:
-            double ir; // Index of Refraction
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-
-        private:
-            static double reflectance(double cosine, double ref_idx) {
-                // Use Schlick's approximation for reflectance.
-                auto r0 = (1-ref_idx) / (1+ref_idx);
-                r0 = r0*r0;
-                return r0 + (1-r0)*pow((1 - cosine),5);
-            }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    };
+    impl Scatter for Dielectric {
+        fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Color, Ray)> {
+            let refraction_ratio = if rec.front_face {
+                1.0 / self.ir
+            } else {
+                self.ir
+            };
+    
+            let unit_direction = r_in.direction().normalized();
+    
+            let cos_theta = ((-1.0) * unit_direction).dot(rec.normal).min(1.0);
+            let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    
+            let mut rng = rand::thread_rng();
+            let cannot_refract = refraction_ratio * sin_theta > 1.0;
+            let will_reflect = rng.gen::<f64>() < Self::reflectance(cos_theta, refraction_ratio);
+    
+            let direction = if cannot_refract || will_reflect {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+                unit_direction.reflect(rec.normal)
+            } else {
+                unit_direction.refract(rec.normal, refraction_ratio)
+            };
+    
+            let scattered = Ray::new(rec.p, direction);
+    
+            Some((Color::new(1.0, 1.0, 1.0), scattered))
+        }
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [glass]: <kbd>[material.h]</kbd> Full glass material]
+    [Listing [glass]: <kbd>[material.rs]</kbd> Full glass material]
 </div>
 
 
@@ -2486,16 +2501,35 @@ An interesting and easy trick with dielectric spheres is to note that if you use
 the geometry is unaffected, but the surface normal points inward. This can be used as a bubble to
 make a hollow glass sphere:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    world.add(make_shared<sphere>(Point3( 0.0, -100.5, -1.0), 100.0, material_ground));
-    world.add(make_shared<sphere>(Point3( 0.0,    0.0, -1.0),   0.5, material_center));
-    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),   0.5, material_left));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    world.add(make_shared<sphere>(Point3(-1.0,    0.0, -1.0),  -0.4, material_left));
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-    world.add(make_shared<sphere>(Point3( 1.0,    0.0, -1.0),   0.5, material_right));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let mat_center = Rc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
+    let mat_left = Rc::new(Dielectric::new(1.5));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    let mat_left_inner = Rc::new(Dielectric::new(1.5));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let mat_right = Rc::new(Metal::new(Color::new(0.8, 0.6, 0.2), 1.0));
+
+    let sphere_ground = Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0, mat_ground);
+    let sphere_center = Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5, mat_center);
+    let sphere_left = Sphere::new(Point3::new(-1.0, 0.0, -1.0), 0.5, mat_left);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    let sphere_left_inner = Sphere::new(Point3::new(-1.0, 0.0, -1.0), -0.4, mat_left_inner);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    let sphere_right = Sphere::new(Point3::new(1.0, 0.0, -1.0), 0.5, mat_right);
+
+    world.push(Box::new(sphere_ground));
+    world.push(Box::new(sphere_center));
+    world.push(Box::new(sphere_left));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    world.push(Box::new(sphere_left_inner));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    let mat_ground = Rc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
+    world.push(Box::new(sphere_right));
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [scene-hollow-glass]: <kbd>[main.cc]</kbd> Scene with hollow glass sphere]
+    [Listing [scene-hollow-glass]: <kbd>[main.rs]</kbd> Scene with hollow glass sphere]
 </div>
 
 <div class='together'>
