@@ -23,7 +23,7 @@ impl HitRecord {
     }
 }
 
-pub type World = Vec<Box<dyn Hit + Send + Sync>>;
+pub type World = Vec<Box<dyn Hit>>;
 
 impl Hit for World {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {

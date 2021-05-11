@@ -17,7 +17,7 @@ use sphere::Sphere;
 use material::{Lambertian, Metal, Dielectric};
 use camera::Camera;
 
-pub fn random_scene() -> World {
+fn random_scene() -> World {
     let mut rng = rand::thread_rng();
     let mut world = World::new();
 

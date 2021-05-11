@@ -2923,100 +2923,104 @@ A Final Render
 <div class='together'>
 First let’s make the image on the cover of this book -- lots of random spheres:
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-    hittable_list random_scene() {
-        hittable_list world;
-
-        auto ground_material = make_shared<lambertian>(Color(0.5, 0.5, 0.5));
-        world.add(make_shared<sphere>(Point3(0,-1000,0), 1000, ground_material));
-
-        for (int a = -11; a < 11; a++) {
-            for (int b = -11; b < 11; b++) {
-                auto choose_mat = random_double();
-                Point3 center(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
-
-                if ((center - Point3(4, 0.2, 0)).length() > 0.9) {
-                    shared_ptr<material> sphere_material;
-
-                    if (choose_mat < 0.8) {
-                        // diffuse
-                        auto albedo = Color::random() * Color::random();
-                        sphere_material = make_shared<lambertian>(albedo);
-                        world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                    } else if (choose_mat < 0.95) {
-                        // metal
-                        auto albedo = Color::random(0.5, 1);
-                        auto fuzz = random_double(0, 0.5);
-                        sphere_material = make_shared<metal>(albedo, fuzz);
-                        world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                    } else {
-                        // glass
-                        sphere_material = make_shared<dielectric>(1.5);
-                        world.add(make_shared<sphere>(center, 0.2, sphere_material));
-                    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    fn random_scene() -> World {
+        let mut rng = rand::thread_rng();
+        let mut world = World::new();
+    
+        let ground_mat = Rc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+        let ground_sphere = Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_mat);
+    
+        world.push(Box::new(ground_sphere));
+    
+        for a in -11..=11 {
+            for b in -11..=11 {
+                let choose_mat: f64 = rng.gen();
+                let center = Point3::new((a as f64) + rng.gen_range(0.0..0.9),
+                                         0.2,
+                                         (b as f64) + rng.gen_range(0.0..0.9));
+    
+                if choose_mat < 0.8 {
+                    // Diffuse
+                    let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
+                    let sphere_mat = Rc::new(Lambertian::new(albedo));
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
+                } else if choose_mat < 0.95 {
+                    // Metal
+                    let albedo = Color::random(0.4..1.0);
+                    let fuzz = rng.gen_range(0.0..0.5);
+                    let sphere_mat = Rc::new(Metal::new(albedo, fuzz));
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
+                } else {
+                    // Glass
+                    let sphere_mat = Rc::new(Dielectric::new(1.5));
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
                 }
             }
         }
-
-        auto material1 = make_shared<dielectric>(1.5);
-        world.add(make_shared<sphere>(Point3(0, 1, 0), 1.0, material1));
-
-        auto material2 = make_shared<lambertian>(Color(0.4, 0.2, 0.1));
-        world.add(make_shared<sphere>(Point3(-4, 1, 0), 1.0, material2));
-
-        auto material3 = make_shared<metal>(Color(0.7, 0.6, 0.5), 0.0);
-        world.add(make_shared<sphere>(Point3(4, 1, 0), 1.0, material3));
-
-        return world;
+    
+        let mat1 = Rc::new(Dielectric::new(1.5));
+        let mat2 = Rc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+        let mat3 = Rc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    
+        let sphere1 = Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, mat1);
+        let sphere2 = Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, mat2);
+        let sphere3 = Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, mat3);
+    
+        world.push(Box::new(sphere1));
+        world.push(Box::new(sphere2));
+        world.push(Box::new(sphere3));
+    
+        world
     }
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
 
-    int main() {
-
+    fn main() -> () {
         // Image
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        const auto aspect_ratio = 3.0 / 2.0;
-        const int image_width = 1200;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        const int image_height = static_cast<int>(image_width / aspect_ratio);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        const int samples_per_pixel = 500;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        const int max_depth = 50;
-
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        const ASPECT_RATIO: f64 = 3.0 / 2.0;
+        const IMAGE_WIDTH: u64 = 1200;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        const IMAGE_HEIGHT: u64 = ((IMAGE_WIDTH as f64) / ASPECT_RATIO) as u64;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        const SAMPLES_PER_PIXEL: u64 = 500;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        const MAX_DEPTH: u64 = 50;
+    
         // World
-
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto world = random_scene();
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let world = random_scene();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
         // Camera
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let lookfrom = Point3::new(13.0, 2.0, 3.0);
+        let lookat = Point3::new(0.0, 0.0, 0.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        let vup = Vec3::new(0.0, 1.0, 0.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let dist_to_focus = 10.0;
+        let aperture = 0.1;
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        let cam = Camera::new(lookfrom,
+                              lookat,
+                              vup,
+                              20.0,
+                              ASPECT_RATIO,
+                              aperture,
+                              dist_to_focus);
 
-
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        Point3 lookfrom(13,2,3);
-        Point3 lookat(0,0,0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-        Vec3 vup(0,1,0);
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++ highlight
-        auto dist_to_focus = 10.0;
-        auto aperture = 0.1;
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ C++
-
-        camera cam(lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus);
-
-        // Render
-
-        std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
-
-        for (int j = image_height-1; j >= 0; --j) {
-            ..
+        ..
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [scene-final]: <kbd>[main.cc]</kbd> Final scene]
+    [Listing [scene-final]: <kbd>[main.rs]</kbd> Final scene]
 </div>
 
 <div class='together'>
@@ -3031,6 +3035,164 @@ look like they are floating. This is not a bug -- you don’t see glass balls mu
 they also look a bit strange, and indeed seem to float on cloudy days. A point on the big sphere
 under a glass ball still has lots of light hitting it because the sky is re-ordered rather than
 blocked.
+
+
+Parallelism
+------------
+
+In order to make our program run in parallel, we will use the crate `Rayon` and have to use data
+structures which are thread-safe. In Rust this is ensured by the borrow checker and the `Send` and
+`Sync` marker traits. For more information have a look at https://doc.rust-lang.org/book/ch16-00-concurrency.html.
+For now, the only thing we are interested in is to make our code thread-safe or in other words: make
+it compile. We must replace all `Rc`s with `Arc`s, these are thread-safe versions of `Rc`. Also,
+since our `World` is needed in each thread it, it must be `Send` and `Sync` so it can be used with
+`Rayon`. We can simply achieve this by imposing those traits on `Hit` and `Scatter`. As a consequence
+our `Sphere` will be `Send` and `Sync` as well and everything is fine:
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct HitRecord {
+        pub p: Point3,
+        pub normal: Vec3,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        pub mat: Arc<dyn Scatter>,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        pub t: f64,
+        pub front_face: bool
+    }
+
+    ..
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    pub trait Hit : Send + Sync {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    ..
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [hit-thread-safety]: <kbd>[hit.rs]</kbd> Use a thread-safe reference counter and presume thread-safety traits]
+
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+    pub trait Scatter : Send + Sync {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    ..
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [scatter-thread-safety]: <kbd>[material.rs]</kbd> Use a thread-safe reference counter and presume thread-safety traits]
+
+There is also an `Rc` in our Sphere struct to be replaced:
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    pub struct Sphere {
+        center: Point3,
+        radius: f64,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        mat: Arc<dyn Scatter>
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [sphere-thread-safety]: <kbd>[sphere.rs]</kbd> Use a thread-safe reference counter in the Sphere struct]
+
+Finally, we can parallelize our code:
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    fn random_scene() -> World {
+        let mut rng = rand::thread_rng();
+        let mut world = World::new();
+    
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let ground_mat = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+        let ground_sphere = Sphere::new(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_mat);
+    
+        world.push(Box::new(ground_sphere));
+    
+        for a in -11..=11 {
+            for b in -11..=11 {
+                let choose_mat: f64 = rng.gen();
+                let center = Point3::new((a as f64) + rng.gen_range(0.0..0.9),
+                                         0.2,
+                                         (b as f64) + rng.gen_range(0.0..0.9));
+    
+                if choose_mat < 0.8 {
+                    // Diffuse
+                    let albedo = Color::random(0.0..1.0) * Color::random(0.0..1.0);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                    let sphere_mat = Arc::new(Lambertian::new(albedo));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
+                } else if choose_mat < 0.95 {
+                    // Metal
+                    let albedo = Color::random(0.4..1.0);
+                    let fuzz = rng.gen_range(0.0..0.5);
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                    let sphere_mat = Arc::new(Metal::new(albedo, fuzz));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
+                } else {
+                    // Glass
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+                    let sphere_mat = Arc::new(Dielectric::new(1.5));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+                    let sphere = Sphere::new(center, 0.2, sphere_mat);
+    
+                    world.push(Box::new(sphere));
+                }
+            }
+        }
+    
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+        let mat1 = Arc::new(Dielectric::new(1.5));
+        let mat2 = Arc::new(Lambertian::new(Color::new(0.4, 0.2, 0.1)));
+        let mat3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    
+        let sphere1 = Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, mat1);
+        let sphere2 = Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, mat2);
+        let sphere3 = Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, mat3);
+    
+        world.push(Box::new(sphere1));
+        world.push(Box::new(sphere2));
+        world.push(Box::new(sphere3));
+    
+        world
+    }
+
+    ..
+
+    fn main() -> () {
+        ..
+
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j + 1);
+
+            let scanline: Vec<Color> = (0..IMAGE_WIDTH).into_par_iter().map(|i| {
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for _ in 0..SAMPLES_PER_PIXEL {
+                    let mut rng = rand::thread_rng();
+                    let random_u: f64 = rng.gen();
+                    let random_v: f64 = rng.gen();
+
+                    let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                    let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
+
+                    let r = cam.get_ray(u, v);
+                    pixel_color += ray_color(&r, &world, MAX_DEPTH);
+                }
+
+                pixel_color
+            }).collect();
+
+            for pixel_color in scanline {
+                println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
+            }
+        }
+
+        ..
+    }
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    [Listing [parallel]: <kbd>[main.rs]</kbd> Compute all pixels of a scanline in parallel]
 
 
 Next Steps
