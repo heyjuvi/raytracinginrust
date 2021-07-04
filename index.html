@@ -190,27 +190,43 @@ loop or other problem.
 Our program outputs the image to the standard output stream (`println!`), so leave that alone and
 instead write to the error output stream (`eprintln!`):
 
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-    for j in 0..IMAGE_HEIGHT {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
-        eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+    use std::io::{stderr, Write};
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-        for i in 0..IMAGE_WIDTH {
-            let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
-            let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
-            let b = 0.25;
-    
-            let ir = (255.999 * r) as u64;
-            let ig = (255.999 * g) as u64;
-            let ib = (255.999 * b) as u64;
-    
-            println!("{} {} {}", ir, ig, ib);
+
+    fn main() -> () {
+        const IMAGE_WIDTH: u64 = 256;
+        const IMAGE_HEIGHT: u64 = 256;
+
+        println!("P3");
+        println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
+        println!("255");
+
+        for j in 0..IMAGE_HEIGHT {
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+
+            for i in 0..IMAGE_WIDTH {
+                let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
+                let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
+                let b = 0.25;
+
+                let ir = (255.999 * r) as u64;
+                let ig = (255.999 * g) as u64;
+                let ib = (255.999 * b) as u64;
+
+                println!("{} {} {}", ir, ig, ib);
+            }
         }
-    }
+
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
-    eprintln!("Done.");
+        eprintln!("Done.");
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    [Listing [main-progress]: <kbd>[main.rs]</kbd> Main render loop with progress reporting]
+    [Listing [main-progress]: <kbd>[main.rs]</kbd> Main with progress reporting]
 </div>
 
 
@@ -436,6 +452,10 @@ Now we can change our main to use this:
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
     mod vec;
 
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
+    use std::io::{stderr, Write};
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
     use vec::{Vec3, Color};
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     
@@ -448,7 +468,8 @@ Now we can change our main to use this:
         println!("255");
     
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -595,7 +616,8 @@ for now because we’ll add antialiasing later):
         println!("255");
     
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -1194,7 +1216,8 @@ And the new main:
         println!("255");
     
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
                 let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
@@ -1373,7 +1396,8 @@ Main is also changed:
         let mut rng = rand::thread_rng();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -1569,7 +1593,8 @@ depth, returning no light contribution at the maximum depth:
     
         let mut rng = rand::thread_rng();
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
@@ -2084,7 +2109,8 @@ Now let’s add some metal spheres to our scene:
     
         let mut rng = rand::thread_rng();
         for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+            eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
+            stderr().flush().unwrap();
     
             for i in 0..IMAGE_WIDTH {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
