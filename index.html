@@ -101,7 +101,7 @@ Let’s make some Rust code to output such a thing:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             for i in 0..IMAGE_WIDTH {
                 let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
                 let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
@@ -191,9 +191,9 @@ Our program outputs the image to the standard output stream (`println!`), so lea
 instead write to the error output stream (`eprintln!`):
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-    for j in 0..IMAGE_HEIGHT {
+    for j in (0..IMAGE_HEIGHT).rev() {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
-        eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        eprintln!("Scanlines remaining: {}", j);
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
         for i in 0..IMAGE_WIDTH {
             let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
@@ -447,8 +447,8 @@ Now we can change our main to use this:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -594,8 +594,8 @@ for now because we’ll add antialiasing later):
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -1193,8 +1193,8 @@ And the new main:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
                 let u = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
@@ -1372,8 +1372,8 @@ Main is also changed:
     
         let mut rng = rand::thread_rng();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
@@ -1568,8 +1568,8 @@ depth, returning no light contribution at the maximum depth:
         println!("255");
     
         let mut rng = rand::thread_rng();
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
@@ -2083,8 +2083,8 @@ Now let’s add some metal spheres to our scene:
         println!("255");
     
         let mut rng = rand::thread_rng();
-        for j in 0..IMAGE_HEIGHT {
-            eprintln!("Scanlines remaining: {}", IMAGE_HEIGHT - j - 1);
+        for j in (0..IMAGE_HEIGHT).rev() {
+            eprintln!("Scanlines remaining: {}", j);
     
             for i in 0..IMAGE_WIDTH {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
