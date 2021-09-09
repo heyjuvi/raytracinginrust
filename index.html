@@ -966,10 +966,11 @@ And here’s the sphere:
                 }
             }
     
+            let p = r.at(root);
             let rec = HitRecord {
                 t: root,
-                p: r.at(root),
-                normal: (rec.p - self.center) / self.radius;
+                p: p,
+                normal: (p - self.center) / self.radius;
             };
 
             Some(rec)
