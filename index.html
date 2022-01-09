@@ -101,7 +101,7 @@ Let’s make some Rust code to output such a thing:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             for i in 0..IMAGE_WIDTH {
                 let r = (i as f64) / ((IMAGE_WIDTH - 1) as f64);
                 let g = (j as f64) / ((IMAGE_HEIGHT - 1) as f64);
@@ -193,7 +193,7 @@ instead write to the error output stream (`eprintln!`):
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
     use std::io::{stderr, Write};
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-
+  
     fn main() -> () {
         const IMAGE_WIDTH: u64 = 256;
         const IMAGE_HEIGHT: u64 = 256;
@@ -988,10 +988,11 @@ And here’s the sphere:
                 }
             }
     
+            let p = r.at(root);
             let rec = HitRecord {
                 t: root,
-                p: r.at(root),
-                normal: (rec.p - self.center) / self.radius;
+                p: p,
+                normal: (p - self.center) / self.radius;
             };
 
             Some(rec)
@@ -2111,7 +2112,7 @@ Now let’s add some metal spheres to our scene:
         for j in 0..IMAGE_HEIGHT {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
-    
+
             for i in 0..IMAGE_WIDTH {
                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                 for _ in 0..SAMPLES_PER_PIXEL {
@@ -2497,7 +2498,7 @@ material:
         fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
             // Use Schlick's approximation for reflectance
             let r0 = ((1.0 - ref_idx) / (1.0 + ref_idx)).powi(2);
-            r0 * (1.0 - r0) * (1.0 - cosine).powi(5)
+            r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
         }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     }
