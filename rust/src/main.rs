@@ -1,21 +1,21 @@
-mod vec;
-mod ray;
-mod hit;
-mod sphere;
 mod camera;
+mod hit;
 mod material;
+mod ray;
+mod sphere;
+mod vec;
 
 use std::sync::Arc;
 
 use rand::prelude::*;
 use rayon::prelude::*;
 
-use vec::{Vec3, Point3, Color};
-use ray::Ray;
-use hit::{Hit, World};
-use sphere::Sphere;
-use material::{Lambertian, Metal, Dielectric};
 use camera::Camera;
+use hit::{Hit, World};
+use material::{Dielectric, Lambertian, Metal};
+use ray::Ray;
+use sphere::Sphere;
+use vec::{Color, Point3, Vec3};
 
 fn random_scene() -> World {
     let mut rng = rand::thread_rng();
@@ -29,7 +29,11 @@ fn random_scene() -> World {
     for a in -11..=11 {
         for b in -11..=11 {
             let choose_mat: f64 = rng.gen();
-            let center = Point3::new((a as f64) + rng.gen_range(0.0..0.9), 0.2, (b as f64) + rng.gen_range(0.0..0.9));
+            let center = Point3::new(
+                (a as f64) + rng.gen_range(0.0..0.9),
+                0.2,
+                (b as f64) + rng.gen_range(0.0..0.9),
+            );
 
             if choose_mat < 0.8 {
                 // Diffuse
@@ -90,7 +94,7 @@ fn ray_color(r: &Ray, world: &World, depth: u64) -> Color {
     }
 }
 
-fn main() -> () {
+fn main() {
     // Image
     const ASPECT_RATIO: f64 = 3.0 / 2.0;
     const IMAGE_WIDTH: u64 = 1200;
@@ -108,13 +112,15 @@ fn main() -> () {
     let dist_to_focus = 10.0;
     let aperture = 0.1;
 
-    let cam = Camera::new(lookfrom,
-                          lookat,
-                          vup,
-                          20.0,
-                          ASPECT_RATIO,
-                          aperture,
-                          dist_to_focus);
+    let cam = Camera::new(
+        lookfrom,
+        lookat,
+        vup,
+        20.0,
+        ASPECT_RATIO,
+        aperture,
+        dist_to_focus,
+    );
 
     println!("P3");
     println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -123,22 +129,25 @@ fn main() -> () {
     for j in (0..IMAGE_HEIGHT).rev() {
         eprintln!("Scanlines remaining: {}", j + 1);
 
-        let scanline: Vec<Color> = (0..IMAGE_WIDTH).into_par_iter().map(|i| {
-            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-            for _ in 0..SAMPLES_PER_PIXEL {
-                let mut rng = rand::thread_rng();
-                let random_u: f64 = rng.gen();
-                let random_v: f64 = rng.gen();
+        let scanline: Vec<Color> = (0..IMAGE_WIDTH)
+            .into_par_iter()
+            .map(|i| {
+                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                for _ in 0..SAMPLES_PER_PIXEL {
+                    let mut rng = rand::thread_rng();
+                    let random_u: f64 = rng.gen();
+                    let random_v: f64 = rng.gen();
 
-                let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
-                let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
+                    let u = ((i as f64) + random_u) / ((IMAGE_WIDTH - 1) as f64);
+                    let v = ((j as f64) + random_v) / ((IMAGE_HEIGHT - 1) as f64);
 
-                let r = cam.get_ray(u, v);
-                pixel_color += ray_color(&r, &world, MAX_DEPTH);
-            }
+                    let r = cam.get_ray(u, v);
+                    pixel_color += ray_color(&r, &world, MAX_DEPTH);
+                }
 
-            pixel_color
-        }).collect();
+                pixel_color
+            })
+            .collect();
 
         for pixel_color in scanline {
             println!("{}", pixel_color.format_color(SAMPLES_PER_PIXEL));
