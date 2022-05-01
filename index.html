@@ -202,7 +202,7 @@ instead write to the error output stream (`eprintln!`):
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
 
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust highlight
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
@@ -467,7 +467,7 @@ Now we can change our main to use this:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
     
@@ -615,7 +615,7 @@ for now because we’ll add antialiasing later):
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
     
@@ -1216,7 +1216,7 @@ And the new main:
         println!("{} {}", IMAGE_WIDTH, IMAGE_HEIGHT);
         println!("255");
     
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
     
@@ -1396,7 +1396,7 @@ Main is also changed:
     
         let mut rng = rand::thread_rng();
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
     
@@ -1593,7 +1593,7 @@ depth, returning no light contribution at the maximum depth:
         println!("255");
     
         let mut rng = rand::thread_rng();
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
     
@@ -2109,7 +2109,7 @@ Now let’s add some metal spheres to our scene:
         println!("255");
     
         let mut rng = rand::thread_rng();
-        for j in 0..IMAGE_HEIGHT {
+        for j in (0..IMAGE_HEIGHT).rev() {
             eprint!("\rScanlines remaining: {:3}", IMAGE_HEIGHT - j - 1);
             stderr().flush().unwrap();
 
