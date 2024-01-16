@@ -1132,6 +1132,7 @@ A List of Hittable Objects
 We have a generic object called a `hittable` that the ray can intersect with. We now add a struct
 that stores a list of `Hit`s:
 
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub type World = Vec<Box<dyn Hit>>;
     
@@ -1152,6 +1153,7 @@ that stores a list of `Hit`s:
     }
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</script>
     [Listing [world-initial]: <kbd>[hit.rs]</kbd> The World struct]
 </div>
 
