@@ -1828,7 +1828,7 @@ The `hit_record` is to avoid a bunch of arguments so we can stuff whatever info 
 You can use arguments instead; it’s a matter of taste. Hittables and materials need to know each
 other so there is some circularity of the references. In C++ you just need to alert the compiler
 that the pointer is to a class, which the “class material” in the hittable class below does:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct HitRecord {
         pub p: Point3,
@@ -1841,6 +1841,7 @@ that the pointer is to a class, which the “class material” in the hittable c
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [hit-with-material]: <kbd>[hit.rs]</kbd> Hit record with added material]
+</script>
 </div>
 
 What we have set up here is that material will tell us how rays interact with the surface.
@@ -1853,7 +1854,7 @@ functions of the material pointer to find out what ray, if any, is scattered.
 <div class='together'>
 To achieve this, we must have a reference to the material for our sphere struct to returned
 within `hit_record`. See the highlighted lines below:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct Sphere {
         center: Point3,
@@ -1896,6 +1897,7 @@ within `hit_record`. See the highlighted lines below:
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [sphere-material]: <kbd>[sphere.rs]</kbd> Ray-sphere intersection with added material information]
+</script>
 </div>
 
 
