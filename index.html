@@ -2061,7 +2061,7 @@ We need to modify the `ray_color` function to use this:
     [Listing [ray-color-scatter]: <kbd>[main.rs]</kbd> Ray color with scattered reflectance]
 </div>
 
-Note that you need to implement another trait to make this possible.
+Note that you will need to implement another vec3 trait to make this possible.
 
 A Scene with Metal Spheres
 ---------------------------
@@ -3096,7 +3096,7 @@ it compile. We must replace all `Rc`s with `Arc`s, these are thread-safe version
 since our `World` is needed in each thread it, it must be `Send` and `Sync` so it can be used with
 `Rayon`. We can simply achieve this by imposing those traits on `Hit` and `Scatter`. As a consequence
 our `Sphere` will be `Send` and `Sync` as well and everything is fine:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct HitRecord {
         pub p: Point3,
@@ -3241,7 +3241,7 @@ Finally, we can parallelize our code:
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [parallel]: <kbd>[main.rs]</kbd> Compute all pixels of a scanline in parallel]
-
+</script>
 
 Next Steps
 -----------
