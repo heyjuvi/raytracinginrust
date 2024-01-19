@@ -1132,6 +1132,7 @@ A List of Hittable Objects
 We have a generic object called a `hittable` that the ray can intersect with. We now add a struct
 that stores a list of `Hit`s:
 
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub type World = Vec<Box<dyn Hit>>;
     
@@ -1152,6 +1153,7 @@ that stores a list of `Hit`s:
     }
 
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+</script>
     [Listing [world-initial]: <kbd>[hit.rs]</kbd> The World struct]
 </div>
 
@@ -1826,7 +1828,7 @@ The `hit_record` is to avoid a bunch of arguments so we can stuff whatever info 
 You can use arguments instead; it’s a matter of taste. Hittables and materials need to know each
 other so there is some circularity of the references. In C++ you just need to alert the compiler
 that the pointer is to a class, which the “class material” in the hittable class below does:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct HitRecord {
         pub p: Point3,
@@ -1839,6 +1841,7 @@ that the pointer is to a class, which the “class material” in the hittable c
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [hit-with-material]: <kbd>[hit.rs]</kbd> Hit record with added material]
+</script>
 </div>
 
 What we have set up here is that material will tell us how rays interact with the surface.
@@ -1851,7 +1854,7 @@ functions of the material pointer to find out what ray, if any, is scattered.
 <div class='together'>
 To achieve this, we must have a reference to the material for our sphere struct to returned
 within `hit_record`. See the highlighted lines below:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct Sphere {
         center: Point3,
@@ -1894,6 +1897,7 @@ within `hit_record`. See the highlighted lines below:
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [sphere-material]: <kbd>[sphere.rs]</kbd> Ray-sphere intersection with added material information]
+</script>
 </div>
 
 
@@ -2057,7 +2061,7 @@ We need to modify the `ray_color` function to use this:
     [Listing [ray-color-scatter]: <kbd>[main.rs]</kbd> Ray color with scattered reflectance]
 </div>
 
-Note that you need to implement another trait to make this possible.
+Note that you will need to implement another vec3 trait to make this possible.
 
 A Scene with Metal Spheres
 ---------------------------
@@ -3092,7 +3096,7 @@ it compile. We must replace all `Rc`s with `Arc`s, these are thread-safe version
 since our `World` is needed in each thread it, it must be `Send` and `Sync` so it can be used with
 `Rayon`. We can simply achieve this by imposing those traits on `Hit` and `Scatter`. As a consequence
 our `Sphere` will be `Send` and `Sync` as well and everything is fine:
-
+<script type="preformatted">
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Rust
     pub struct HitRecord {
         pub p: Point3,
@@ -3237,7 +3241,7 @@ Finally, we can parallelize our code:
     }
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     [Listing [parallel]: <kbd>[main.rs]</kbd> Compute all pixels of a scanline in parallel]
-
+</script>
 
 Next Steps
 -----------
